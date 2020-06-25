@@ -5,6 +5,18 @@ use std::ptr;
 
 use pipewire_sys as pw_sys;
 
+mod error;
+pub use error::*;
+mod loop_;
+pub use loop_::*;
+mod main_loop;
+pub use main_loop::*;
+mod context;
+pub use context::*;
+mod core_;
+pub use core_::*;
+mod utils;
+
 /// Initialize PipeWire
 ///
 /// Initialize the PipeWire system and set up debugging
