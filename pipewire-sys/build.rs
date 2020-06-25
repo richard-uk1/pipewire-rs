@@ -20,7 +20,10 @@ fn main() {
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
         .whitelist_function("pw_.*")
         .whitelist_type("pw_.*")
-        .whitelist_var("pw_.*");
+        .whitelist_var("pw_.*")
+        .whitelist_function("spa_.*")
+        .whitelist_type("spa_.*")
+        .whitelist_var("spa_.*");
 
     let builder = libpipewire
         .include_paths
