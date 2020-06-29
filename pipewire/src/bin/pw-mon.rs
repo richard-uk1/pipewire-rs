@@ -25,10 +25,30 @@ fn monitor() -> Result<()> {
 
     let context = pw::Context::new(&l)?;
     // TODO: pass properties to connect
-    let _core = context.connect()?;
+    let core = context.connect()?;
 
-    // TODO: _core.add_listener()
-    // TODO: get registry and add listener
+    let main_loop_weak = Arc::downgrade(&main_loop);
+    let _listener = core
+        .add_listener_local()
+        .info(|info| {
+            dbg!(info);
+        })
+        .done(|_id, _seq| {
+            // TODO
+        })
+        .error(move |id, seq, res, message| {
+            eprintln!("error id:{} seq:{} res:{}: {}", id, seq, res, message);
+
+            if id == 0 {
+                if let Some(main_loop) = main_loop_weak.upgrade() {
+                    main_loop.quit();
+                }
+            }
+        })
+        .register();
+
+    let _registry = core.get_registry();
+    // TODO: add listener to registry
 
     main_loop.run();
 

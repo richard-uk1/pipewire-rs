@@ -15,6 +15,8 @@ mod context;
 pub use context::*;
 mod core_;
 pub use core_::*;
+pub mod registry;
+mod spa;
 mod utils;
 
 /// Initialize PipeWire
