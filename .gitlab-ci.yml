@@ -7,7 +7,7 @@ stages:
 variables:
   FDO_UPSTREAM_REPO: 'pipewire/pipewire-rs'
   # change to build against a different tag/commit/branch of pipewire
-  PIPEWIRE_HEAD: '0.3.6'
+  PIPEWIRE_HEAD: '0.3.14'
 
 # ci-templates as of Jun 24th 2020
 .templates_sha: &templates_sha 9a98f16486904b6406243d6e1407e4dfd71b6263
