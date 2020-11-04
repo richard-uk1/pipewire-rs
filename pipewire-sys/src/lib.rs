@@ -1,3 +1,6 @@
+// Copyright 2020, Collabord Ltd.
+// Licensed under the MIT license, see the LICENSE file or <https://opensource.org/licenses/MIT>
+
 #![allow(non_upper_case_globals)]
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]

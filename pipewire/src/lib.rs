@@ -1,3 +1,6 @@
+// Copyright 2020, Collabord Ltd.
+// Licensed under the MIT license, see the LICENSE file or <https://opensource.org/licenses/MIT>
+
 use std::ptr;
 
 use pipewire_sys as pw_sys;
