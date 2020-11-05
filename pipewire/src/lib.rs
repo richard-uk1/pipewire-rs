@@ -1,4 +1,4 @@
-// Copyright 2020, Collabord Ltd.
+// Copyright 2020, Collabora Ltd.
 // Licensed under the MIT license, see the LICENSE file or <https://opensource.org/licenses/MIT>
 
 use std::ptr;
