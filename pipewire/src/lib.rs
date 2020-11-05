@@ -1,5 +1,5 @@
 // Copyright 2020, Collabora Ltd.
-// Licensed under the MIT license, see the LICENSE file or <https://opensource.org/licenses/MIT>
+// SPDX-License-Identifier: MIT
 
 use std::ptr;
 

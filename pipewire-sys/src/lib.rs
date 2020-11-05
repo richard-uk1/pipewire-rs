@@ -1,5 +1,5 @@
 // Copyright 2020, Collabora Ltd.
-// Licensed under the MIT license, see the LICENSE file or <https://opensource.org/licenses/MIT>
+// SPDX-License-Identifier: MIT
 
 #![allow(non_upper_case_globals)]
 #![allow(non_camel_case_types)]
