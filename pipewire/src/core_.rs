@@ -13,7 +13,7 @@ use pipewire_sys as pw_sys;
 
 const VERSION_CORE_EVENTS: u32 = 0;
 const PW_VERSION_REGISTRY: u32 = 3;
-const PW_ID_CORE: u32 = 0;
+pub const PW_ID_CORE: u32 = 0;
 
 #[derive(Debug)]
 pub struct Core(*mut pw_sys::pw_core);
