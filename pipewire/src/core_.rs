@@ -13,6 +13,7 @@ use pipewire_sys as pw_sys;
 
 const VERSION_CORE_EVENTS: u32 = 0;
 const PW_VERSION_REGISTRY: u32 = 3;
+const PW_ID_CORE: u32 = 0;
 
 #[derive(Debug)]
 pub struct Core(*mut pw_sys::pw_core);
@@ -44,6 +45,23 @@ impl Core {
         };
 
         Registry::new(registry)
+    }
+
+    /* FIXME: Return type is a SPA Result as seen here:
+       https://gitlab.freedesktop.org/pipewire/pipewire/-/blob/master/doc/spa/design.md#error-codes.
+       A type that represents this more idomatically should be returned.
+       See also: https://gitlab.freedesktop.org/pipewire/pipewire-rs/-/merge_requests/9#note_689093
+    */
+    pub fn sync(&self, seq: i32) -> i32 {
+        unsafe {
+            let iface: *mut pw_sys::spa_interface = self.0.cast();
+            let funcs: *const pw_sys::pw_core_methods = (*iface).cb.funcs.cast();
+            let f = (*funcs).sync.unwrap();
+
+            let res = f((*iface).cb.data, PW_ID_CORE, seq);
+
+            res as i32
+        }
     }
 }
 
@@ -111,6 +129,10 @@ impl<'a> ListenerLocalBuilder<'a> {
         }
 
         unsafe extern "C" fn core_events_done(data: *mut c_void, id: u32, seq: i32) {
+            /* FIXME: Exposing the seq number for the user to check themselves makes the library more "low level"
+               than it perhaps could be.
+               See https://gitlab.freedesktop.org/pipewire/pipewire-rs/-/merge_requests/9#note_689093
+            */
             let callbacks = (data as *mut ListenerLocalBuilder).as_ref().unwrap();
             callbacks.done.as_ref().unwrap()(id, seq);
         }
