@@ -4,7 +4,7 @@
 use pipewire_sys as pw_sys;
 use std::ops::Deref;
 use std::ptr;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 use crate::error::Error;
 use crate::loop_::Loop;
@@ -21,6 +21,11 @@ impl MainLoop {
             inner: Rc::new(inner),
         })
     }
+
+    pub fn downgrade(&self) -> WeakMainLoop {
+        let weak = Rc::downgrade(&self.inner);
+        WeakMainLoop { weak }
+    }
 }
 
 impl Deref for MainLoop {
@@ -34,6 +39,16 @@ impl Deref for MainLoop {
 impl Loop for MainLoop {
     fn as_ptr(&self) -> *mut pw_sys::pw_loop {
         unsafe { pw_sys::pw_main_loop_get_loop(self.inner.0) }
+    }
+}
+
+pub struct WeakMainLoop {
+    weak: Weak<MainLoopInner>,
+}
+
+impl WeakMainLoop {
+    pub fn upgrade(&self) -> Option<MainLoop> {
+        self.weak.upgrade().map(|inner| MainLoop { inner })
     }
 }
 
