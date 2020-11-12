@@ -9,7 +9,7 @@ use std::rc::Rc;
 use crate::error::Error;
 use crate::loop_::Loop;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MainLoop {
     inner: Rc<MainLoopInner>,
 }

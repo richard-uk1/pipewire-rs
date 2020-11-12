@@ -9,17 +9,17 @@ use crate::error::Error;
 use crate::loop_::Loop;
 
 #[derive(Debug)]
-pub struct Context(*mut pw_sys::pw_context);
+pub struct Context<T: Loop + Clone>(*mut pw_sys::pw_context, T);
 
-impl Context {
+impl<T: Loop + Clone> Context<T> {
     // TODO: properties argument
-    pub fn new<T: Loop>(loop_: &T) -> Result<Self, Error> {
+    pub fn new(loop_: &T) -> Result<Self, Error> {
         unsafe {
             let context = pw_sys::pw_context_new(loop_.as_ptr(), ptr::null_mut(), 0);
             if context.is_null() {
                 Err(Error::CreationFailed)
             } else {
-                Ok(Context(context))
+                Ok(Context(context, loop_.clone()))
             }
         }
     }
@@ -38,7 +38,7 @@ impl Context {
     }
 }
 
-impl Drop for Context {
+impl<T: Loop + Clone> Drop for Context<T> {
     fn drop(&mut self) {
         unsafe { pw_sys::pw_context_destroy(self.0) }
     }
