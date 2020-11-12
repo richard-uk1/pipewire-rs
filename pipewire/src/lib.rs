@@ -7,7 +7,7 @@ use pipewire_sys as pw_sys;
 
 mod error;
 pub use error::*;
-mod loop_;
+pub mod loop_;
 pub use loop_::*;
 mod main_loop;
 pub use main_loop::*;
@@ -18,6 +18,12 @@ pub use core_::*;
 pub mod registry;
 mod spa;
 mod utils;
+
+// Re-export all the traits in a prelude module, so that applications
+// can always "use pipewire::prelude::*" without getting conflicts
+pub mod prelude {
+    pub use crate::loop_::Loop;
+}
 
 /// Initialize PipeWire
 ///

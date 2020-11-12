@@ -13,9 +13,9 @@ pub struct Context(*mut pw_sys::pw_context);
 
 impl Context {
     // TODO: properties argument
-    pub fn new(loop_: &Loop) -> Result<Self, Error> {
+    pub fn new<T: Loop>(loop_: &T) -> Result<Self, Error> {
         unsafe {
-            let context = pw_sys::pw_context_new(loop_.to_ptr(), ptr::null_mut(), 0);
+            let context = pw_sys::pw_context_new(loop_.as_ptr(), ptr::null_mut(), 0);
             if context.is_null() {
                 Err(Error::CreationFailed)
             } else {

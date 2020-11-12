@@ -34,13 +34,11 @@ impl MainLoop {
             pw_sys::pw_main_loop_quit(self.0);
         }
     }
+}
 
-    pub fn get_loop(&self) -> Loop {
-        unsafe {
-            let l = pw_sys::pw_main_loop_get_loop(self.0);
-
-            Loop::from_ptr(l, false)
-        }
+impl Loop for MainLoop {
+    fn as_ptr(&self) -> *mut pw_sys::pw_loop {
+        unsafe { pw_sys::pw_main_loop_get_loop(self.0) }
     }
 }
 

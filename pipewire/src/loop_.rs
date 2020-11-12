@@ -4,39 +4,17 @@
 use libc::{c_int, c_void};
 use pipewire_sys as pw_sys;
 use signal::Signal;
-use std::ptr;
 
-use crate::error::Error;
 use crate::utils::assert_main_thread;
 
-#[derive(Debug)]
-pub struct Loop(*mut pw_sys::pw_loop, bool);
-
-impl Loop {
-    pub(crate) fn from_ptr(l: *mut pw_sys::pw_loop, owned: bool) -> Self {
-        Loop(l, owned)
-    }
-
-    // TODO: props argument
-    pub fn new() -> Result<Self, Error> {
-        unsafe {
-            let l = pw_sys::pw_loop_new(ptr::null());
-            if l.is_null() {
-                Err(Error::CreationFailed)
-            } else {
-                Ok(Loop::from_ptr(l, true))
-            }
-        }
-    }
-
-    pub(crate) fn to_ptr(&self) -> *mut pw_sys::pw_loop {
-        self.0
-    }
+pub trait Loop {
+    fn as_ptr(&self) -> *mut pw_sys::pw_loop;
 
     #[must_use]
-    pub fn add_signal_local<F>(&self, signal: Signal, callback: F) -> Source<F>
+    fn add_signal_local<F>(&self, signal: Signal, callback: F) -> Source<F, Self>
     where
         F: Fn() + 'static,
+        Self: Sized,
     {
         assert_main_thread();
 
@@ -51,7 +29,14 @@ impl Loop {
         let data = Box::into_raw(Box::new(callback));
 
         let (source, data) = unsafe {
-            let iface = self.0.as_ref().unwrap().utils.as_ref().unwrap().iface;
+            let iface = self
+                .as_ptr()
+                .as_ref()
+                .unwrap()
+                .utils
+                .as_ref()
+                .unwrap()
+                .iface;
             let funcs: *const pw_sys::spa_loop_utils_methods = iface.cb.funcs.cast();
             let f = (*funcs).add_signal.unwrap();
 
@@ -72,12 +57,20 @@ impl Loop {
         }
     }
 
-    fn destroy_source<F>(&self, source: &Source<F>)
+    fn destroy_source<F>(&self, source: &Source<F, Self>)
     where
         F: Fn() + 'static,
+        Self: Sized,
     {
         unsafe {
-            let iface = self.0.as_ref().unwrap().utils.as_ref().unwrap().iface;
+            let iface = self
+                .as_ptr()
+                .as_ref()
+                .unwrap()
+                .utils
+                .as_ref()
+                .unwrap()
+                .iface;
             let funcs: *const pw_sys::spa_loop_utils_methods = iface.cb.funcs.cast();
             let f = (*funcs).destroy_source.unwrap();
 
@@ -85,29 +78,22 @@ impl Loop {
         }
     }
 }
-
-impl Drop for Loop {
-    fn drop(&mut self) {
-        if self.1 {
-            unsafe { pw_sys::pw_loop_destroy(self.0) }
-        }
-    }
-}
-
-pub struct Source<'a, F>
+pub struct Source<'a, F, L>
 where
     F: Fn() + 'static,
+    L: Loop,
 {
     source: *mut pw_sys::spa_source,
-    loop_: &'a Loop,
+    loop_: &'a L,
     // Store data wrapper to prevent leak
     #[allow(dead_code)]
     data: Box<F>,
 }
 
-impl<'a, F> Drop for Source<'a, F>
+impl<'a, F, L> Drop for Source<'a, F, L>
 where
     F: Fn() + 'static,
+    L: Loop,
 {
     fn drop(&mut self) {
         self.loop_.destroy_source(&self)

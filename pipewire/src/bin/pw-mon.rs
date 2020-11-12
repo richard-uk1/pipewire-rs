@@ -6,24 +6,25 @@ use pipewire as pw;
 use signal::Signal;
 use std::sync::Arc;
 
+use pw::prelude::*;
+
 fn monitor() -> Result<()> {
     let main_loop = Arc::new(pw::MainLoop::new()?);
-    let l = main_loop.get_loop();
 
     let main_loop_weak = Arc::downgrade(&main_loop);
-    let _sig_int = l.add_signal_local(Signal::SIGINT, move || {
+    let _sig_int = main_loop.add_signal_local(Signal::SIGINT, move || {
         if let Some(main_loop) = main_loop_weak.upgrade() {
             main_loop.quit();
         }
     });
     let main_loop_weak = Arc::downgrade(&main_loop);
-    let _sig_term = l.add_signal_local(Signal::SIGTERM, move || {
+    let _sig_term = main_loop.add_signal_local(Signal::SIGTERM, move || {
         if let Some(main_loop) = main_loop_weak.upgrade() {
             main_loop.quit();
         }
     });
 
-    let context = pw::Context::new(&l)?;
+    let context = pw::Context::new(main_loop.as_ref())?;
     // TODO: pass properties to connect
     let core = context.connect()?;
 
