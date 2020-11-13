@@ -9,6 +9,7 @@ use std::{fmt, mem};
 
 use crate::registry::Registry;
 use crate::spa;
+use crate::spa_interface_call_method;
 use pipewire_sys as pw_sys;
 
 const VERSION_CORE_EVENTS: u32 = 0;
@@ -37,11 +38,13 @@ impl Core {
     #[must_use]
     pub fn get_registry(&self) -> Registry {
         let registry = unsafe {
-            let iface: *mut pw_sys::spa_interface = self.0.cast();
-            let funcs: *const pw_sys::pw_core_methods = (*iface).cb.funcs.cast();
-            let f = (*funcs).get_registry.unwrap();
-
-            f((*iface).cb.data, PW_VERSION_REGISTRY, 0)
+            spa_interface_call_method!(
+                self.0,
+                pw_sys::pw_core_methods,
+                get_registry,
+                PW_VERSION_REGISTRY,
+                0
+            )
         };
 
         Registry::new(registry)
@@ -54,13 +57,7 @@ impl Core {
     */
     pub fn sync(&self, seq: i32) -> i32 {
         unsafe {
-            let iface: *mut pw_sys::spa_interface = self.0.cast();
-            let funcs: *const pw_sys::pw_core_methods = (*iface).cb.funcs.cast();
-            let f = (*funcs).sync.unwrap();
-
-            let res = f((*iface).cb.data, PW_ID_CORE, seq);
-
-            res as i32
+            spa_interface_call_method!(self.0, pw_sys::pw_core_methods, sync, PW_ID_CORE, seq)
         }
     }
 }
@@ -167,18 +164,17 @@ impl<'a> ListenerLocalBuilder<'a> {
         };
 
         let (listener, data) = unsafe {
-            let iface: *mut pw_sys::spa_interface = self.core.0.cast();
-            let funcs: *const pw_sys::pw_core_methods = (*iface).cb.funcs.cast();
-            let f = (*funcs).add_listener.unwrap();
-
+            let ptr = self.core.0;
             let data = Box::into_raw(Box::new(self));
             let mut listener: Pin<Box<pw_sys::spa_hook>> = Box::pin(mem::zeroed());
 
-            f(
-                (*iface).cb.data,
+            spa_interface_call_method!(
+                ptr,
+                pw_sys::pw_core_methods,
+                add_listener,
                 listener.as_mut().get_unchecked_mut(),
                 e.as_ref().get_ref(),
-                data as *mut _,
+                data as *mut _
             );
 
             (listener, Box::from_raw(data))
