@@ -14,3 +14,4 @@ keywords = ["pipewire", "multimedia", "audio", "video"]
 
 [dependencies]
 libspa-sys = { version = "0.1.0", path = "../libspa-sys" }
+bitflags = "1.2.1"

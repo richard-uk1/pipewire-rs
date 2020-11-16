@@ -11,7 +11,7 @@ use crate::registry::Registry;
 use libspa as spa;
 use libspa_sys as spa_sys;
 use pipewire_sys as pw_sys;
-use spa::spa_interface_call_method;
+use spa::{dict::Dict, spa_interface_call_method};
 
 const VERSION_CORE_EVENTS: u32 = 0;
 const PW_VERSION_REGISTRY: u32 = 3;
@@ -201,43 +201,60 @@ impl<'a> ListenerLocalBuilder<'a> {
     }
 }
 
-pub struct Info(*const pw_sys::pw_core_info);
+pub struct Info {
+    ptr: *const pw_sys::pw_core_info,
+    /// Can contain a Dict wrapping the raw spa_dict at (*ptr).props.
+    ///
+    /// Since it is our responsibility that it does not stay alive longer than the raw dict,
+    /// we store it here and only hand out borrows to it.
+    props: Option<Dict>,
+}
 
 impl Info {
     fn new(info: *const pw_sys::pw_core_info) -> Self {
-        Self(info)
+        let props_ptr = unsafe { (*info).props };
+        Self {
+            ptr: info,
+            props: if props_ptr.is_null() {
+                None
+            } else {
+                Some(unsafe { Dict::from_ptr(props_ptr) })
+            },
+        }
     }
 
     pub fn id(&self) -> u32 {
-        unsafe { (*self.0).id }
+        unsafe { (*self.ptr).id }
     }
 
     pub fn cookie(&self) -> u32 {
-        unsafe { (*self.0).cookie }
+        unsafe { (*self.ptr).cookie }
     }
 
     pub fn user_name(&self) -> &str {
-        unsafe { CStr::from_ptr((*self.0).user_name).to_str().unwrap() }
+        unsafe { CStr::from_ptr((*self.ptr).user_name).to_str().unwrap() }
     }
 
     pub fn host_name(&self) -> &str {
-        unsafe { CStr::from_ptr((*self.0).host_name).to_str().unwrap() }
+        unsafe { CStr::from_ptr((*self.ptr).host_name).to_str().unwrap() }
     }
 
     pub fn version(&self) -> &str {
-        unsafe { CStr::from_ptr((*self.0).version).to_str().unwrap() }
+        unsafe { CStr::from_ptr((*self.ptr).version).to_str().unwrap() }
     }
 
     pub fn name(&self) -> &str {
-        unsafe { CStr::from_ptr((*self.0).name).to_str().unwrap() }
+        unsafe { CStr::from_ptr((*self.ptr).name).to_str().unwrap() }
     }
 
     pub fn change_mask(&self) -> ChangeMask {
-        let mask = unsafe { (*self.0).change_mask };
+        let mask = unsafe { (*self.ptr).change_mask };
         ChangeMask::from_bits(mask).expect("invalid change_mask")
     }
 
-    // TODO: props
+    pub fn props(&self) -> Option<&Dict> {
+        self.props.as_ref()
+    }
 }
 
 impl fmt::Debug for Info {
@@ -250,6 +267,7 @@ impl fmt::Debug for Info {
             .field("version", &self.version())
             .field("name", &self.name())
             .field("change-mask", &self.change_mask())
+            .field("props", &self.props())
             .finish()
     }
 }
