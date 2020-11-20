@@ -1,0 +1,20 @@
+[package]
+name = "libspa"
+version = "0.1.0"
+authors = ["Guillaume Desmottes <guillaume.desmottes@collabora.com>"]
+edition = "2018"
+categories = ["api-bindings", "multimedia"]
+description = "Rust bindings for libspa"
+repository = "https://gitlab.freedesktop.org/pipewire/pipewire-rs"
+license = "MIT"
+readme = "README.md"
+homepage = "https://pipewire.org"
+documentation = "https://docs.rs/libspa/"
+keywords = ["pipewire", "multimedia", "audio", "video"]
+
+[dependencies]
+libspa-sys = { version = "0.1.0", path = "../libspa-sys" }
+
+[dev-dependencies]
+pipewire-sys = { version = "0.1.0", path = "../pipewire-sys" }
+pipewire = { version = "0.1.0", path = "../pipewire" }

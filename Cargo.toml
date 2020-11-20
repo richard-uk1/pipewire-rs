@@ -2,6 +2,7 @@
   
 members = [
   "libspa-sys",
+  "libspa",
   "pipewire-sys",
   "pipewire",
 ]
