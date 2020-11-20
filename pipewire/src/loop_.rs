@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 use libc::{c_int, c_void};
+use libspa_sys as spa_sys;
 use pipewire_sys as pw_sys;
 use signal::Signal;
 
@@ -37,7 +38,7 @@ pub trait Loop {
                 .as_ref()
                 .unwrap()
                 .iface;
-            let funcs: *const pw_sys::spa_loop_utils_methods = iface.cb.funcs.cast();
+            let funcs: *const spa_sys::spa_loop_utils_methods = iface.cb.funcs.cast();
             let f = (*funcs).add_signal.unwrap();
 
             let source = f(
@@ -71,7 +72,7 @@ pub trait Loop {
                 .as_ref()
                 .unwrap()
                 .iface;
-            let funcs: *const pw_sys::spa_loop_utils_methods = iface.cb.funcs.cast();
+            let funcs: *const spa_sys::spa_loop_utils_methods = iface.cb.funcs.cast();
             let f = (*funcs).destroy_source.unwrap();
 
             f(iface.cb.data, source.source)
@@ -83,7 +84,7 @@ where
     F: Fn() + 'static,
     L: Loop,
 {
-    source: *mut pw_sys::spa_source,
+    source: *mut spa_sys::spa_source,
     loop_: &'a L,
     // Store data wrapper to prevent leak
     #[allow(dead_code)]

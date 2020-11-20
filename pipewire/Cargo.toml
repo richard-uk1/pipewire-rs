@@ -14,6 +14,7 @@ keywords = ["pipewire", "multimedia", "audio", "video"]
 
 [dependencies]
 pipewire-sys = { version = "0.1.0", path = "../pipewire-sys" }
+libspa-sys = { version = "0.1.0", path = "../libspa-sys" }
 anyhow = "1"
 thiserror = "1"
 libc = "0.2"
