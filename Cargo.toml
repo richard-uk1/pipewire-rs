@@ -1,6 +1,7 @@
 [workspace]
   
 members = [
+  "libspa-sys",
   "pipewire-sys",
   "pipewire",
 ]
