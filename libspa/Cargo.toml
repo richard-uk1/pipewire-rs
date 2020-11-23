@@ -14,7 +14,3 @@ keywords = ["pipewire", "multimedia", "audio", "video"]
 
 [dependencies]
 libspa-sys = { version = "0.1.0", path = "../libspa-sys" }
-
-[dev-dependencies]
-pipewire-sys = { version = "0.1.0", path = "../pipewire-sys" }
-pipewire = { version = "0.1.0", path = "../pipewire" }

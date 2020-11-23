@@ -1,6 +1,7 @@
 // Copyright 2020, Collabora Ltd.
 // SPDX-License-Identifier: MIT
 
+// FIXME: remove 'ignore' to actually build doc test once 'pipewire' crate has been updated on crates.io
 /// Call a method on a spa_interface.
 ///
 /// This needs to be called from within an `unsafe` block.
@@ -16,7 +17,7 @@
 ///
 /// # Examples
 /// Here we call the sync method on a `pipewire_sys::pw_core` object.
-/// ```rust
+/// ```ignore
 /// use pipewire_sys as pw_sys;
 /// use libspa as spa;
 ///
