@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 use libc::{c_int, c_void};
+use libspa::spa_interface_call_method;
 use libspa_sys as spa_sys;
 use pipewire_sys as pw_sys;
 use signal::Signal;
@@ -30,7 +31,7 @@ pub trait Loop {
         let data = Box::into_raw(Box::new(callback));
 
         let (source, data) = unsafe {
-            let iface = self
+            let mut iface = self
                 .as_ptr()
                 .as_ref()
                 .unwrap()
@@ -38,14 +39,14 @@ pub trait Loop {
                 .as_ref()
                 .unwrap()
                 .iface;
-            let funcs: *const spa_sys::spa_loop_utils_methods = iface.cb.funcs.cast();
-            let f = (*funcs).add_signal.unwrap();
 
-            let source = f(
-                iface.cb.data,
+            let source = spa_interface_call_method!(
+                &mut iface as *mut pw_sys::spa_interface,
+                spa_sys::spa_loop_utils_methods,
+                add_signal,
                 signal as c_int,
                 Some(call_closure::<F>),
-                data as *mut _,
+                data as *mut _
             );
 
             (source, Box::from_raw(data))
@@ -64,7 +65,7 @@ pub trait Loop {
         Self: Sized,
     {
         unsafe {
-            let iface = self
+            let mut iface = self
                 .as_ptr()
                 .as_ref()
                 .unwrap()
@@ -72,10 +73,13 @@ pub trait Loop {
                 .as_ref()
                 .unwrap()
                 .iface;
-            let funcs: *const spa_sys::spa_loop_utils_methods = iface.cb.funcs.cast();
-            let f = (*funcs).destroy_source.unwrap();
 
-            f(iface.cb.data, source.source)
+            spa_interface_call_method!(
+                &mut iface as *mut pw_sys::spa_interface,
+                spa_sys::spa_loop_utils_methods,
+                destroy_source,
+                source.source
+            )
         }
     }
 }
