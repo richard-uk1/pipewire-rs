@@ -16,7 +16,6 @@ pub use context::*;
 mod core_;
 pub use core_::*;
 pub mod registry;
-mod spa;
 mod utils;
 
 // Re-export all the traits in a prelude module, so that applications

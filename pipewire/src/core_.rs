@@ -8,9 +8,10 @@ use std::pin::Pin;
 use std::{fmt, mem};
 
 use crate::registry::Registry;
-use crate::spa;
-use crate::spa_interface_call_method;
+use libspa as spa;
+use libspa_sys as spa_sys;
 use pipewire_sys as pw_sys;
+use spa::spa_interface_call_method;
 
 const VERSION_CORE_EVENTS: u32 = 0;
 const PW_VERSION_REGISTRY: u32 = 3;
@@ -75,14 +76,14 @@ pub struct Listener<'a> {
     // Need to stay allocated while the listener is registered
     #[allow(dead_code)]
     events: Pin<Box<pw_sys::pw_core_events>>,
-    listener: Pin<Box<pipewire_sys::spa_hook>>,
+    listener: Pin<Box<spa_sys::spa_hook>>,
     #[allow(dead_code)]
     data: Box<ListenerLocalBuilder<'a>>,
 }
 
 impl<'a> Drop for Listener<'a> {
     fn drop(&mut self) {
-        spa::hook_remove(*self.listener);
+        spa::hook::remove(*self.listener);
     }
 }
 
@@ -166,13 +167,17 @@ impl<'a> ListenerLocalBuilder<'a> {
         let (listener, data) = unsafe {
             let ptr = self.core.0;
             let data = Box::into_raw(Box::new(self));
-            let mut listener: Pin<Box<pw_sys::spa_hook>> = Box::pin(mem::zeroed());
+            let mut listener: Pin<Box<spa_sys::spa_hook>> = Box::pin(mem::zeroed());
+            // Have to cast from pw-sys namespaced type to the equivalent spa-sys type
+            // as bindgen does not allow us to generate bindings dependings of another
+            // sys crate, see https://github.com/rust-lang/rust-bindgen/issues/1929
+            let listener_ptr: *mut spa_sys::spa_hook = listener.as_mut().get_unchecked_mut();
 
             spa_interface_call_method!(
                 ptr,
                 pw_sys::pw_core_methods,
                 add_listener,
-                listener.as_mut().get_unchecked_mut(),
+                listener_ptr.cast(),
                 e.as_ref().get_ref(),
                 data as *mut _
             );
