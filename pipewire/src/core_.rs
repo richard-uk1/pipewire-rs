@@ -30,9 +30,7 @@ impl Core {
     pub fn add_listener_local(&self) -> ListenerLocalBuilder {
         ListenerLocalBuilder {
             core: self,
-            info: None,
-            done: None,
-            error: None,
+            cbs: ListenerLocalCallbacks::default(),
         }
     }
 
@@ -62,9 +60,8 @@ impl Core {
         }
     }
 }
-
-pub struct ListenerLocalBuilder<'a> {
-    core: &'a Core,
+#[derive(Default)]
+struct ListenerLocalCallbacks {
     info: Option<Box<dyn Fn(&Info)>>,
     done: Option<Box<dyn Fn(u32, i32)>>,
     #[allow(clippy::type_complexity)]
@@ -72,16 +69,27 @@ pub struct ListenerLocalBuilder<'a> {
                                                      // TODO: ping, remove_id, bound_id, add_mem, remove_mem
 }
 
-pub struct Listener<'a> {
+pub struct ListenerLocalBuilder<'a> {
+    core: &'a Core,
+    cbs: ListenerLocalCallbacks,
+}
+
+pub struct Listener {
     // Need to stay allocated while the listener is registered
     #[allow(dead_code)]
     events: Pin<Box<pw_sys::pw_core_events>>,
     listener: Pin<Box<spa_sys::spa_hook>>,
     #[allow(dead_code)]
-    data: Box<ListenerLocalBuilder<'a>>,
+    data: Box<ListenerLocalCallbacks>,
 }
 
-impl<'a> Drop for Listener<'a> {
+impl Listener {
+    pub fn unregister(self) {
+        // Consuming the listener will call drop()
+    }
+}
+
+impl<'a> Drop for Listener {
     fn drop(&mut self) {
         spa::hook::remove(*self.listener);
     }
@@ -93,7 +101,7 @@ impl<'a> ListenerLocalBuilder<'a> {
     where
         F: Fn(&Info) + 'static,
     {
-        self.info = Some(Box::new(info));
+        self.cbs.info = Some(Box::new(info));
         self
     }
 
@@ -102,7 +110,7 @@ impl<'a> ListenerLocalBuilder<'a> {
     where
         F: Fn(u32, i32) + 'static,
     {
-        self.done = Some(Box::new(done));
+        self.cbs.done = Some(Box::new(done));
         self
     }
 
@@ -111,17 +119,17 @@ impl<'a> ListenerLocalBuilder<'a> {
     where
         F: Fn(u32, i32, i32, &str) + 'static,
     {
-        self.error = Some(Box::new(error));
+        self.cbs.error = Some(Box::new(error));
         self
     }
 
     #[must_use]
-    pub fn register(self) -> Listener<'a> {
+    pub fn register(self) -> Listener {
         unsafe extern "C" fn core_events_info(
             data: *mut c_void,
             info: *const pw_sys::pw_core_info,
         ) {
-            let callbacks = (data as *mut ListenerLocalBuilder).as_ref().unwrap();
+            let callbacks = (data as *mut ListenerLocalCallbacks).as_ref().unwrap();
             let info = Info::new(info);
             callbacks.info.as_ref().unwrap()(&info);
         }
@@ -131,7 +139,7 @@ impl<'a> ListenerLocalBuilder<'a> {
                than it perhaps could be.
                See https://gitlab.freedesktop.org/pipewire/pipewire-rs/-/merge_requests/9#note_689093
             */
-            let callbacks = (data as *mut ListenerLocalBuilder).as_ref().unwrap();
+            let callbacks = (data as *mut ListenerLocalCallbacks).as_ref().unwrap();
             callbacks.done.as_ref().unwrap()(id, seq);
         }
 
@@ -142,7 +150,7 @@ impl<'a> ListenerLocalBuilder<'a> {
             res: i32,
             message: *const c_char,
         ) {
-            let callbacks = (data as *mut ListenerLocalBuilder).as_ref().unwrap();
+            let callbacks = (data as *mut ListenerLocalCallbacks).as_ref().unwrap();
             let message = CStr::from_ptr(message).to_str().unwrap();
             callbacks.error.as_ref().unwrap()(id, seq, res, message);
         }
@@ -151,13 +159,13 @@ impl<'a> ListenerLocalBuilder<'a> {
             let mut e: Pin<Box<pw_sys::pw_core_events>> = Box::pin(mem::zeroed());
             e.version = VERSION_CORE_EVENTS;
 
-            if self.info.is_some() {
+            if self.cbs.info.is_some() {
                 e.info = Some(core_events_info);
             }
-            if self.done.is_some() {
+            if self.cbs.done.is_some() {
                 e.done = Some(core_events_done);
             }
-            if self.error.is_some() {
+            if self.cbs.error.is_some() {
                 e.error = Some(core_events_error);
             }
 
@@ -166,7 +174,7 @@ impl<'a> ListenerLocalBuilder<'a> {
 
         let (listener, data) = unsafe {
             let ptr = self.core.0;
-            let data = Box::into_raw(Box::new(self));
+            let data = Box::into_raw(Box::new(self.cbs));
             let mut listener: Pin<Box<spa_sys::spa_hook>> = Box::pin(mem::zeroed());
             // Have to cast from pw-sys namespaced type to the equivalent spa-sys type
             // as bindgen does not allow us to generate bindings dependings of another
