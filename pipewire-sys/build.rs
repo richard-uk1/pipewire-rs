@@ -20,7 +20,11 @@ fn main() {
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
         .whitelist_function("pw_.*")
         .whitelist_type("pw_.*")
-        .whitelist_var("pw_.*");
+        .whitelist_var("pw_.*")
+        .blacklist_function("spa_.*")
+        .blacklist_type("spa_.*")
+        .blacklist_item("spa_.*")
+        .raw_line("use libspa_sys::*;");
 
     let builder = libpipewire
         .include_paths

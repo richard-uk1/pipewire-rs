@@ -41,7 +41,7 @@ pub trait Loop {
                 .iface;
 
             let source = spa_interface_call_method!(
-                &mut iface as *mut pw_sys::spa_interface,
+                &mut iface as *mut spa_sys::spa_interface,
                 spa_sys::spa_loop_utils_methods,
                 add_signal,
                 signal as c_int,
@@ -75,7 +75,7 @@ pub trait Loop {
                 .iface;
 
             spa_interface_call_method!(
-                &mut iface as *mut pw_sys::spa_interface,
+                &mut iface as *mut spa_sys::spa_interface,
                 spa_sys::spa_loop_utils_methods,
                 destroy_source,
                 source.source
