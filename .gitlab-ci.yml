@@ -3,6 +3,7 @@ stages:
   - lint
   - test
   - extras
+  - deploy
 
 variables:
   FDO_UPSTREAM_REPO: 'pipewire/pipewire-rs'
@@ -146,3 +147,20 @@ outdated:
     - release
   script:
     - cargo outdated --root-deps-only --exit-code 1 -v
+
+pages:
+  extends:
+    - .fedora
+    - .fdo.distribution-image@fedora
+    - .build
+  stage: 'deploy'
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $PIPELINE_BRANCH != $CI_DEFAULT_BRANCH
+      when: never
+  script:
+    - cargo doc --color=always
+    - mv target/doc public/
+  artifacts:
+    paths:
+      - 'public'
