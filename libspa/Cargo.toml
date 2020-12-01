@@ -9,7 +9,7 @@ repository = "https://gitlab.freedesktop.org/pipewire/pipewire-rs"
 license = "MIT"
 readme = "README.md"
 homepage = "https://pipewire.org"
-documentation = "https://docs.rs/libspa/"
+documentation = "https://pipewire.pages.freedesktop.org/pipewire-rs/libspa/"
 keywords = ["pipewire", "multimedia", "audio", "video"]
 
 [dependencies]

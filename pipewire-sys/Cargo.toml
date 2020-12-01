@@ -10,7 +10,7 @@ repository = "https://gitlab.freedesktop.org/pipewire/pipewire-rs"
 license = "MIT"
 readme = "README.md"
 homepage = "https://pipewire.org"
-documentation = "https://docs.rs/pipewire-sys/"
+documentation = "https://pipewire.pages.freedesktop.org/pipewire-rs/pipewire_sys/"
 keywords = ["ffi", "pipewire", "multimedia", "audio", "video"]
 
 [dependencies]
