@@ -13,5 +13,5 @@ documentation = "https://pipewire.pages.freedesktop.org/pipewire-rs/libspa/"
 keywords = ["pipewire", "multimedia", "audio", "video"]
 
 [dependencies]
-libspa-sys = { version = "0.1.0", path = "../libspa-sys" }
+spa_sys = { package = "libspa-sys", path = "../libspa-sys" }
 bitflags = "1.2.1"

@@ -1,7 +1,7 @@
 use bitflags::bitflags;
 use std::{ffi::CStr, fmt, marker::PhantomData};
 
-pub struct Dict(*const libspa_sys::spa_dict);
+pub struct Dict(*const spa_sys::spa_dict);
 
 impl Dict {
     /// Wraps the provided pointer in a read-only `Dict` struct without taking ownership of the struct pointed to.
@@ -12,7 +12,7 @@ impl Dict {
     /// - The struct pointed to must be kept valid for the entire lifetime of the created `Dict`.
     ///
     /// Violating any of these rules will result in undefined behaviour.
-    pub unsafe fn from_ptr(dict: *const libspa_sys::spa_dict) -> Self {
+    pub unsafe fn from_ptr(dict: *const spa_sys::spa_dict) -> Self {
         debug_assert!(
             !dict.is_null(),
             "Dict must not be created from a pointer that is NULL"
@@ -102,9 +102,9 @@ bitflags! {
 }
 
 pub struct CIter<'a> {
-    next: *const libspa_sys::spa_dict_item,
+    next: *const spa_sys::spa_dict_item,
     /// Points to the first element outside of the allocated area.
-    end: *const libspa_sys::spa_dict_item,
+    end: *const spa_sys::spa_dict_item,
     _phantom: PhantomData<&'a str>,
 }
 
@@ -183,7 +183,7 @@ impl<'a> Iterator for Values<'a> {
 #[cfg(test)]
 mod tests {
     use super::{Dict, Flags};
-    use libspa_sys::{spa_dict, spa_dict_item};
+    use spa_sys::{spa_dict, spa_dict_item};
     use std::{ffi::CString, ptr};
 
     /// Create a raw dict with the specified number of key-value pairs.
@@ -203,7 +203,7 @@ mod tests {
     ) -> (
         Vec<(CString, CString)>,
         Vec<spa_dict_item>,
-        libspa_sys::spa_dict,
+        spa_sys::spa_dict,
     ) {
         assert!(num_items != 0, "num_items must not be zero");
 
