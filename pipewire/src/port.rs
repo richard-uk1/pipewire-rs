@@ -6,7 +6,7 @@ use libc::c_void;
 use std::pin::Pin;
 use std::{fmt, mem};
 
-use crate::proxy::{Listener, Proxy, ProxyT};
+use crate::proxy::{Listener, Proxy, ProxyListenerLocalBuilder, ProxyT};
 use crate::registry::ObjectType;
 use spa::dict::ForeignDict;
 
@@ -35,6 +35,11 @@ impl Port {
             port: self,
             cbs: ListenerLocalCallbacks::default(),
         }
+    }
+
+    #[must_use]
+    pub fn add_proxy_listener_local(&self) -> ProxyListenerLocalBuilder {
+        self.proxy.add_listener_local()
     }
 }
 
