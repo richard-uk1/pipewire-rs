@@ -8,6 +8,7 @@ use std::cell::RefCell;
 use std::sync::Arc;
 
 use pw::node::Node;
+use pw::port::Port;
 use pw::prelude::*;
 use pw::proxy::{Listener, ProxyT};
 use pw::registry::ObjectType;
@@ -79,8 +80,22 @@ fn monitor() -> Result<()> {
                         proxies.borrow_mut().push(Box::new(node));
                         listeners.borrow_mut().push(Box::new(obj_listener));
                     }
-                    ObjectType::Port
-                    | ObjectType::Module
+                    ObjectType::Port => {
+                        let port: Port = registry.bind(&obj).unwrap();
+                        let obj_listener = port
+                            .add_listener_local()
+                            .info(|info| {
+                                dbg!(info);
+                            })
+                            .param(|seq, id, index, next| {
+                                dbg!((seq, id, index, next));
+                            })
+                            .register();
+
+                        proxies.borrow_mut().push(Box::new(port));
+                        listeners.borrow_mut().push(Box::new(obj_listener));
+                    }
+                    ObjectType::Module
                     | ObjectType::Device
                     | ObjectType::Factory
                     | ObjectType::Client
