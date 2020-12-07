@@ -24,7 +24,7 @@ fn main() {
         .blacklist_function("spa_.*")
         .blacklist_type("spa_.*")
         .blacklist_item("spa_.*")
-        .raw_line("use libspa_sys::*;");
+        .raw_line("use spa_sys::*;");
 
     let builder = libpipewire
         .include_paths
