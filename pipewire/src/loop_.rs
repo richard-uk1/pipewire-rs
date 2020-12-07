@@ -2,10 +2,8 @@
 // SPDX-License-Identifier: MIT
 
 use libc::{c_int, c_void};
-use libspa::spa_interface_call_method;
-use libspa_sys as spa_sys;
-use pipewire_sys as pw_sys;
 use signal::Signal;
+use spa::spa_interface_call_method;
 
 use crate::utils::assert_main_thread;
 

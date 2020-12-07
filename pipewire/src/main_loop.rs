@@ -1,7 +1,6 @@
 // Copyright 2020, Collabora Ltd.
 // SPDX-License-Identifier: MIT
 
-use pipewire_sys as pw_sys;
 use std::ops::Deref;
 use std::ptr;
 use std::rc::{Rc, Weak};

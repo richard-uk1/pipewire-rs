@@ -3,8 +3,6 @@
 
 use std::ptr;
 
-use pipewire_sys as pw_sys;
-
 mod error;
 pub use error::*;
 pub mod loop_;

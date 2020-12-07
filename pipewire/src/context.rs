@@ -1,7 +1,6 @@
 // Copyright 2020, Collabora Ltd.
 // SPDX-License-Identifier: MIT
 
-use pipewire_sys as pw_sys;
 use std::ptr;
 
 use crate::core_::Core;

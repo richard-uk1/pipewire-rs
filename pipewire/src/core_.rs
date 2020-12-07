@@ -8,9 +8,6 @@ use std::pin::Pin;
 use std::{fmt, mem};
 
 use crate::registry::Registry;
-use libspa as spa;
-use libspa_sys as spa_sys;
-use pipewire_sys as pw_sys;
 use spa::{dict::Dict, spa_interface_call_method};
 
 const VERSION_CORE_EVENTS: u32 = 0;
