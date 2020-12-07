@@ -6,4 +6,8 @@ use thiserror::Error;
 pub enum Error {
     #[error("Creation failed")]
     CreationFailed,
+    #[error("No memory")]
+    NoMemory,
+    #[error("Wrong proxy type")]
+    WrongProxyType,
 }

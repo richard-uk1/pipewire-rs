@@ -3,11 +3,13 @@
 
 use bitflags::bitflags;
 use libc::{c_char, c_void};
-use std::ffi::CStr;
+use std::ffi::{CStr, CString};
 use std::fmt;
 use std::mem;
 use std::pin::Pin;
 
+use crate::error::Error;
+use crate::proxy::{Proxy, ProxyT};
 use spa::dict::ForeignDict;
 
 const VERSION_REGISTRY_EVENTS: u32 = 0;
@@ -27,6 +29,36 @@ impl Registry {
             registry: self,
             cbs: ListenerLocalCallbacks::default(),
         }
+    }
+
+    pub fn bind<T: ProxyT>(&self, object: &GlobalObject) -> Result<T, Error> {
+        if object.type_ != T::type_() {
+            return Err(Error::WrongProxyType);
+        }
+
+        let proxy = unsafe {
+            let type_ = CString::new(object.type_.to_str()).unwrap();
+            let version = object.type_.client_version();
+
+            let proxy = spa::spa_interface_call_method!(
+                self.0,
+                pw_sys::pw_registry_methods,
+                bind,
+                object.id,
+                type_.as_ptr(),
+                version,
+                0
+            );
+
+            proxy
+        };
+
+        if proxy.is_null() {
+            return Err(Error::NoMemory);
+        }
+
+        let proxy = Proxy::new(proxy);
+        Ok(T::new(proxy))
     }
 }
 

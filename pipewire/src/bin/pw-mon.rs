@@ -4,9 +4,12 @@
 use anyhow::Result;
 use pipewire as pw;
 use signal::Signal;
+use std::cell::RefCell;
 use std::sync::Arc;
 
+use pw::node::Node;
 use pw::prelude::*;
+use pw::proxy::{Listener, ProxyT};
 use pw::registry::ObjectType;
 
 fn monitor() -> Result<()> {
@@ -52,13 +55,31 @@ fn monitor() -> Result<()> {
     let registry = Arc::new(core.get_registry());
     let registry_weak = Arc::downgrade(&registry);
 
+    // Proxies and their listeners need to stay alive so store them here
+    let proxies: RefCell<Vec<Box<dyn ProxyT>>> = RefCell::new(Vec::new());
+    let listeners: RefCell<Vec<Box<dyn Listener>>> = RefCell::new(Vec::new());
+
     let _registry_listener = registry
         .add_listener_local()
         .global(move |obj| {
-            if let Some(_registry) = registry_weak.upgrade() {
+            if let Some(registry) = registry_weak.upgrade() {
                 match obj.type_ {
-                    ObjectType::Node
-                    | ObjectType::Port
+                    ObjectType::Node => {
+                        let node: Node = registry.bind(&obj).unwrap();
+                        let obj_listener = node
+                            .add_listener_local()
+                            .info(|info| {
+                                dbg!(info);
+                            })
+                            .param(|seq, id, index, next| {
+                                dbg!((seq, id, index, next));
+                            })
+                            .register();
+
+                        proxies.borrow_mut().push(Box::new(node));
+                        listeners.borrow_mut().push(Box::new(obj_listener));
+                    }
+                    ObjectType::Port
                     | ObjectType::Module
                     | ObjectType::Device
                     | ObjectType::Factory
