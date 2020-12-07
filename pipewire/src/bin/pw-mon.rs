@@ -4,8 +4,10 @@
 use anyhow::Result;
 use pipewire as pw;
 use signal::Signal;
+use std::sync::Arc;
 
 use pw::prelude::*;
+use pw::registry::ObjectType;
 
 fn monitor() -> Result<()> {
     let main_loop = pw::MainLoop::new()?;
@@ -47,8 +49,34 @@ fn monitor() -> Result<()> {
         })
         .register();
 
-    let _registry = core.get_registry();
-    // TODO: add listener to registry
+    let registry = Arc::new(core.get_registry());
+    let registry_weak = Arc::downgrade(&registry);
+
+    let _registry_listener = registry
+        .add_listener_local()
+        .global(move |obj| {
+            if let Some(_registry) = registry_weak.upgrade() {
+                match obj.type_ {
+                    ObjectType::Node
+                    | ObjectType::Port
+                    | ObjectType::Module
+                    | ObjectType::Device
+                    | ObjectType::Factory
+                    | ObjectType::Client
+                    | ObjectType::Link => {
+                        // TODO
+                    }
+                    _ => {
+                        dbg!(obj);
+                    }
+                }
+            }
+        })
+        .global_remove(|id| {
+            println!("removed:");
+            println!("\tid: {}", id);
+        })
+        .register();
 
     main_loop.run();
 
