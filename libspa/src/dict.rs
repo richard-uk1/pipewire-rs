@@ -70,6 +70,17 @@ pub trait ReadableDict {
     }
 }
 
+pub trait WritableDict {
+    /// Insert the key-value pair, overwriting any old value.
+    fn insert<T: Into<Vec<u8>>>(&mut self, key: T, value: T);
+
+    /// Remove the key-value pair if it exists.
+    fn remove<T: Into<Vec<u8>>>(&mut self, key: T);
+
+    /// Clear the object, removing all key-value pairs.
+    fn clear(&mut self);
+}
+
 /// A wrapper for a `*const spa_dict` struct that does not take ownership of the data,
 /// useful for dicts shared to us via FFI.
 pub struct ForeignDict(*const spa_sys::spa_dict);

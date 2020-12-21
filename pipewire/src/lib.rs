@@ -13,6 +13,8 @@ mod context;
 pub use context::*;
 mod core_;
 pub use core_::*;
+mod properties;
+pub use properties::*;
 pub mod registry;
 mod utils;
 
