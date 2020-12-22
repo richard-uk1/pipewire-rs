@@ -8,7 +8,7 @@ use std::pin::Pin;
 use std::{fmt, mem};
 
 use crate::registry::Registry;
-use spa::{dict::Dict, spa_interface_call_method};
+use spa::{dict::ForeignDict, spa_interface_call_method};
 
 const VERSION_CORE_EVENTS: u32 = 0;
 const PW_VERSION_REGISTRY: u32 = 3;
@@ -204,7 +204,7 @@ pub struct Info {
     ///
     /// Since it is our responsibility that it does not stay alive longer than the raw dict,
     /// we store it here and only hand out borrows to it.
-    props: Option<Dict>,
+    props: Option<ForeignDict>,
 }
 
 impl Info {
@@ -215,7 +215,7 @@ impl Info {
             props: if props_ptr.is_null() {
                 None
             } else {
-                Some(unsafe { Dict::from_ptr(props_ptr) })
+                Some(unsafe { ForeignDict::from_ptr(props_ptr) })
             },
         }
     }
@@ -249,7 +249,7 @@ impl Info {
         ChangeMask::from_bits(mask).expect("invalid change_mask")
     }
 
-    pub fn props(&self) -> Option<&Dict> {
+    pub fn props(&self) -> Option<&ForeignDict> {
         self.props.as_ref()
     }
 }

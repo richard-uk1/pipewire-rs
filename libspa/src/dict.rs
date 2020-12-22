@@ -1,10 +1,81 @@
 use bitflags::bitflags;
 use std::{ffi::CStr, fmt, marker::PhantomData};
 
-pub struct Dict(*const spa_sys::spa_dict);
+pub trait ReadableDict {
+    /// Obtain the pointer to the raw `spa_dict` struct.
+    fn get_dict_ptr(&self) -> *const spa_sys::spa_dict;
 
-impl Dict {
-    /// Wraps the provided pointer in a read-only `Dict` struct without taking ownership of the struct pointed to.
+    /// An iterator over all raw key-value pairs.
+    /// The iterator element type is `(&CStr, &CStr)`.
+    fn iter_cstr(&self) -> CIter {
+        let first_elem_ptr = unsafe { (*self.get_dict_ptr()).items };
+        CIter {
+            next: first_elem_ptr,
+            end: unsafe { first_elem_ptr.offset((*self.get_dict_ptr()).n_items as isize) },
+            _phantom: PhantomData,
+        }
+    }
+
+    /// An iterator over all key-value pairs that are valid utf-8.
+    /// The iterator element type is `(&str, &str)`.
+    fn iter(&self) -> Iter {
+        Iter {
+            inner: self.iter_cstr(),
+        }
+    }
+
+    /// An iterator over all keys that are valid utf-8.
+    /// The iterator element type is &str.
+    fn keys(&self) -> Keys {
+        Keys {
+            inner: self.iter_cstr(),
+        }
+    }
+
+    /// An iterator over all values that are valid utf-8.
+    /// The iterator element type is &str.
+    fn values(&self) -> Values {
+        Values {
+            inner: self.iter_cstr(),
+        }
+    }
+
+    /// Returns the number of key-value-pairs in the dict.
+    /// This is the number of all pairs, not only pairs that are valid-utf8.
+    fn len(&self) -> usize {
+        unsafe { (*self.get_dict_ptr()).n_items as usize }
+    }
+
+    /// Returns `true` if the dict is empty, `false` if it is not.
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Returns the bitflags that are set for the dict.
+    fn flags(&self) -> Flags {
+        Flags::from_bits_truncate(unsafe { (*self.get_dict_ptr()).flags })
+    }
+
+    /// Get the value associated with the provided key.
+    ///
+    /// If the dict does not contain the key or the value is non-utf8, `None` is returned.
+    /// Use [`iter_cstr`] if you need a non-utf8 key or value.
+    ///
+    /// [`iter_cstr`]: #method.iter_cstr
+    // FIXME: Some items might be integers, booleans, floats, doubles or pointers instead of strings.
+    // Perhaps we should return an enum that can be any of these values.
+    // See https://gitlab.freedesktop.org/pipewire/pipewire-rs/-/merge_requests/12#note_695914.
+    fn get(&self, key: &str) -> Option<&str> {
+        self.iter().find(|(k, _)| *k == key).map(|(_, v)| v)
+    }
+}
+
+/// A wrapper for a `*const spa_dict` struct that does not take ownership of the data,
+/// useful for dicts shared to us via FFI.
+pub struct ForeignDict(*const spa_sys::spa_dict);
+
+impl ForeignDict {
+    /// Wraps the provided pointer in a read-only `ForeignDict` struct without taking ownership of the struct pointed to.
     ///
     /// # Safety
     ///
@@ -20,73 +91,15 @@ impl Dict {
 
         Self(dict)
     }
+}
 
-    /// An iterator over all raw key-value pairs.
-    /// The iterator element type is `(&CStr, &CStr)`.
-    pub fn iter_cstr(&self) -> CIter {
-        let first_elem_ptr = unsafe { (*self.0).items };
-        CIter {
-            next: first_elem_ptr,
-            end: unsafe { first_elem_ptr.offset((*self.0).n_items as isize) },
-            _phantom: PhantomData,
-        }
-    }
-
-    /// An iterator over all key-value pairs that are valid utf-8.
-    /// The iterator element type is `(&str, &str)`.
-    pub fn iter(&self) -> Iter {
-        Iter {
-            inner: self.iter_cstr(),
-        }
-    }
-
-    /// An iterator over all keys that are valid utf-8.
-    /// The iterator element type is &str.
-    pub fn keys(&self) -> Keys {
-        Keys {
-            inner: self.iter_cstr(),
-        }
-    }
-
-    /// An iterator over all values that are valid utf-8.
-    /// The iterator element type is &str.
-    pub fn values(&self) -> Values {
-        Values {
-            inner: self.iter_cstr(),
-        }
-    }
-
-    /// Returns the number of key-value-pairs in the dict.
-    /// This is the number of all pairs, not only pairs that are valid-utf8.
-    pub fn len(&self) -> usize {
-        unsafe { (*self.0).n_items as usize }
-    }
-
-    /// Returns `true` if the dict is empty, `false` if it is not.
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
-    /// Returns the bitflags that are set for the dict.
-    pub fn flags(&self) -> Flags {
-        Flags::from_bits_truncate(unsafe { (*self.0).flags })
-    }
-
-    /// Get the value associated with the provided key.
-    ///
-    /// If the dict does not contain the key or the value is non-utf8, `None` is returned.
-    /// Use [`iter_cstr`] if you need a non-utf8 key or value.
-    ///
-    /// [`iter_cstr`]: #method.iter_cstr
-    // FIXME: Some items might be integers, booleans, floats, doubles or pointers instead of strings.
-    // Perhaps we should return an enum that can be any of these values.
-    // See https://gitlab.freedesktop.org/pipewire/pipewire-rs/-/merge_requests/12#note_695914.
-    pub fn get(&self, key: &str) -> Option<&str> {
-        self.iter().find(|(k, _)| *k == key).map(|(_, v)| v)
+impl ReadableDict for ForeignDict {
+    fn get_dict_ptr(&self) -> *const spa_sys::spa_dict {
+        self.0
     }
 }
 
-impl fmt::Debug for Dict {
+impl fmt::Debug for ForeignDict {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // FIXME: Find a way to display flags too.
         f.debug_map().entries(self.iter_cstr()).finish()
@@ -182,7 +195,7 @@ impl<'a> Iterator for Values<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Dict, Flags};
+    use super::{Flags, ForeignDict, ReadableDict};
     use spa_sys::{spa_dict, spa_dict_item};
     use std::{ffi::CString, ptr};
 
@@ -238,7 +251,7 @@ mod tests {
             items: ptr::null(),
         };
 
-        let dict = unsafe { Dict::from_ptr(&raw) };
+        let dict = unsafe { ForeignDict::from_ptr(&raw) };
         let iter = dict.iter_cstr();
 
         assert_eq!(0, dict.len());
@@ -249,7 +262,7 @@ mod tests {
     #[test]
     fn test_iter_cstr() {
         let (_strings, _items, raw) = make_raw_dict(2);
-        let dict = unsafe { Dict::from_ptr(&raw) };
+        let dict = unsafe { ForeignDict::from_ptr(&raw) };
 
         let mut iter = dict.iter_cstr();
         assert_eq!(
@@ -272,7 +285,7 @@ mod tests {
     #[test]
     fn test_iterators() {
         let (_strings, _items, raw) = make_raw_dict(2);
-        let dict = unsafe { Dict::from_ptr(&raw) };
+        let dict = unsafe { ForeignDict::from_ptr(&raw) };
 
         let mut iter = dict.iter();
         assert_eq!(("K0", "V0"), iter.next().unwrap());
@@ -293,7 +306,7 @@ mod tests {
     #[test]
     fn test_get() {
         let (_strings, _items, raw) = make_raw_dict(1);
-        let dict = unsafe { Dict::from_ptr(&raw) };
+        let dict = unsafe { ForeignDict::from_ptr(&raw) };
 
         assert_eq!(Some("V0"), dict.get("K0"));
     }
@@ -301,7 +314,7 @@ mod tests {
     #[test]
     fn test_debug() {
         let (_strings, _items, raw) = make_raw_dict(1);
-        let dict = unsafe { Dict::from_ptr(&raw) };
+        let dict = unsafe { ForeignDict::from_ptr(&raw) };
 
         assert_eq!(r#"{"K0": "V0"}"#, &format!("{:?}", dict))
     }
