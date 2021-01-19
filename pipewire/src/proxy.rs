@@ -50,6 +50,9 @@ pub trait ProxyT {
     fn new(proxy: Proxy) -> Self
     where
         Self: Sized;
+
+    fn upcast(self) -> Proxy;
+    fn upcast_ref(&self) -> &Proxy;
 }
 
 // Trait implemented by listener on high level proxy wrappers.

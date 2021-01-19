@@ -7,7 +7,7 @@ use std::ffi::CStr;
 use std::pin::Pin;
 use std::{fmt, mem};
 
-use crate::proxy::{Listener, Proxy, ProxyListenerLocalBuilder, ProxyT};
+use crate::proxy::{Listener, Proxy, ProxyT};
 use crate::registry::ObjectType;
 use spa::dict::ForeignDict;
 
@@ -26,6 +26,14 @@ impl ProxyT for Node {
     fn new(proxy: Proxy) -> Self {
         Self { proxy }
     }
+
+    fn upcast(self) -> Proxy {
+        self.proxy
+    }
+
+    fn upcast_ref(&self) -> &Proxy {
+        &self.proxy
+    }
 }
 
 impl Node {
@@ -36,11 +44,6 @@ impl Node {
             node: self,
             cbs: ListenerLocalCallbacks::default(),
         }
-    }
-
-    #[must_use]
-    pub fn add_proxy_listener_local(&self) -> ProxyListenerLocalBuilder {
-        self.proxy.add_listener_local()
     }
 }
 
