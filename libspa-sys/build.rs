@@ -20,7 +20,8 @@ fn main() {
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
         .whitelist_function("spa_.*")
         .whitelist_type("spa_.*")
-        .whitelist_var("spa_.*");
+        .whitelist_var("spa_.*")
+        .whitelist_var("SPA_.*");
 
     let builder = libspa.include_paths.iter().fold(builder, |builder, l| {
         let arg = format!("-I{}", l.to_string_lossy());

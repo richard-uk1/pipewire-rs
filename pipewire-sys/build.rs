@@ -21,6 +21,7 @@ fn main() {
         .whitelist_function("pw_.*")
         .whitelist_type("pw_.*")
         .whitelist_var("pw_.*")
+        .whitelist_var("PW_.*")
         .blacklist_function("spa_.*")
         .blacklist_type("spa_.*")
         .blacklist_item("spa_.*")
