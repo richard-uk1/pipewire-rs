@@ -13,7 +13,7 @@ fn main() {
 fn roundtrip() {
     let mainloop = MainLoop::new().expect("Failed to create main loop");
     let context = Context::new(&mainloop).expect("Failed to create context");
-    let core = context.connect().expect("Failed to connect to core");
+    let core = context.connect(None).expect("Failed to connect to core");
 
     // To comply with Rust's safety rules, we wrap this variable in an `Rc` and  a `Cell`.
     let done = Rc::new(Cell::new(false));

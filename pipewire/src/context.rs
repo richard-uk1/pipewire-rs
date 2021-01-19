@@ -6,6 +6,7 @@ use std::ptr;
 use crate::core_::Core;
 use crate::error::Error;
 use crate::loop_::Loop;
+use crate::properties::Properties;
 
 #[derive(Debug)]
 pub struct Context<T: Loop + Clone>(*mut pw_sys::pw_context, T);
@@ -23,10 +24,11 @@ impl<T: Loop + Clone> Context<T> {
         }
     }
 
-    // TODO: properties argument
-    pub fn connect(&self) -> Result<Core, Error> {
+    pub fn connect(&self, properties: Option<Properties>) -> Result<Core, Error> {
+        let properties = properties.map_or(ptr::null_mut(), |p| p.into_raw());
+
         unsafe {
-            let core = pw_sys::pw_context_connect(self.0, ptr::null_mut(), 0);
+            let core = pw_sys::pw_context_connect(self.0, properties, 0);
             if core.is_null() {
                 // TODO: check errno to set better error
                 Err(Error::CreationFailed)

@@ -10,6 +10,7 @@ use std::sync::Arc;
 use pw::node::Node;
 use pw::port::Port;
 use pw::prelude::*;
+use pw::properties;
 use pw::proxy::{Listener, ProxyT};
 use pw::registry::ObjectType;
 
@@ -30,8 +31,11 @@ fn monitor() -> Result<()> {
     });
 
     let context = pw::Context::new(&main_loop)?;
-    // TODO: pass properties to connect
-    let core = context.connect()?;
+    let props = properties! {
+        // TODO: define constants from keys.h
+        "remote.name" => "pipewire-0"
+    };
+    let core = context.connect(Some(props))?;
 
     let main_loop_weak = main_loop.downgrade();
     let _listener = core
