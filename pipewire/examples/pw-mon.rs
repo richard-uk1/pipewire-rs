@@ -6,6 +6,7 @@ use pipewire as pw;
 use signal::Signal;
 use std::cell::RefCell;
 use std::sync::Arc;
+use structopt::StructOpt;
 
 use pw::node::Node;
 use pw::port::Port;
@@ -14,7 +15,7 @@ use pw::properties;
 use pw::proxy::{Listener, ProxyT};
 use pw::registry::ObjectType;
 
-fn monitor() -> Result<()> {
+fn monitor(remote: Option<String>) -> Result<()> {
     let main_loop = pw::MainLoop::new()?;
 
     let main_loop_weak = main_loop.downgrade();
@@ -31,11 +32,13 @@ fn monitor() -> Result<()> {
     });
 
     let context = pw::Context::new(&main_loop)?;
-    let props = properties! {
-        // TODO: define constants from keys.h
-        "remote.name" => "pipewire-0"
-    };
-    let core = context.connect(Some(props))?;
+    let props = remote.map(|remote| {
+        properties! {
+            // TODO: define constants from keys.h
+            "remote.name" => remote
+        }
+    });
+    let core = context.connect(props)?;
 
     let main_loop_weak = main_loop.downgrade();
     let _listener = core
@@ -123,12 +126,18 @@ fn monitor() -> Result<()> {
     Ok(())
 }
 
+#[derive(Debug, StructOpt)]
+#[structopt(name = "pw-mon", about = "PipeWire monitor")]
+struct Opt {
+    #[structopt(short, long, help = "The name of the remote to connect to")]
+    remote: Option<String>,
+}
+
 fn main() -> Result<()> {
     pw::init();
 
-    // TODO: add arguments
-
-    monitor()?;
+    let opt = Opt::from_args();
+    monitor(opt.remote)?;
 
     unsafe {
         pw::deinit();
