@@ -10,9 +10,7 @@ use std::{fmt, mem};
 use crate::registry::Registry;
 use spa::{dict::ForeignDict, spa_interface_call_method};
 
-const VERSION_CORE_EVENTS: u32 = 0;
-const PW_VERSION_REGISTRY: u32 = 3;
-pub const PW_ID_CORE: u32 = 0;
+pub const PW_ID_CORE: u32 = pw_sys::PW_ID_CORE;
 
 #[derive(Debug)]
 pub struct Core(*mut pw_sys::pw_core);
@@ -38,7 +36,7 @@ impl Core {
                 self.0,
                 pw_sys::pw_core_methods,
                 get_registry,
-                PW_VERSION_REGISTRY,
+                pw_sys::PW_VERSION_REGISTRY,
                 0
             )
         };
@@ -154,7 +152,7 @@ impl<'a> ListenerLocalBuilder<'a> {
 
         let e = unsafe {
             let mut e: Pin<Box<pw_sys::pw_core_events>> = Box::pin(mem::zeroed());
-            e.version = VERSION_CORE_EVENTS;
+            e.version = pw_sys::PW_VERSION_CORE_EVENTS;
 
             if self.cbs.info.is_some() {
                 e.info = Some(core_events_info);
@@ -271,6 +269,6 @@ impl fmt::Debug for Info {
 
 bitflags! {
     pub struct ChangeMask: u64 {
-        const PROPS = (1 << 0);
+        const PROPS = pw_sys::PW_CORE_CHANGE_MASK_PROPS as u64;
     }
 }

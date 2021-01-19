@@ -11,8 +11,6 @@ use crate::proxy::{Listener, Proxy, ProxyT};
 use crate::registry::ObjectType;
 use spa::dict::ForeignDict;
 
-const VERSION_NODE_EVENTS: u32 = 0;
-
 #[derive(Debug)]
 pub struct Node {
     proxy: Proxy,
@@ -128,11 +126,11 @@ impl NodeInfo {
 
 bitflags! {
     pub struct NodeChangeMask: u64 {
-        const INPUT_PORTS = (1 << 0);
-        const OUTPUT_PORTS = (1 << 1);
-        const STATE = (1 << 2);
-        const PROPS = (1 << 3);
-        const PARAMS = (1 << 4);
+        const INPUT_PORTS = pw_sys::PW_NODE_CHANGE_MASK_INPUT_PORTS as u64;
+        const OUTPUT_PORTS = pw_sys::PW_NODE_CHANGE_MASK_OUTPUT_PORTS as u64;
+        const STATE = pw_sys::PW_NODE_CHANGE_MASK_STATE as u64;
+        const PROPS = pw_sys::PW_NODE_CHANGE_MASK_PROPS as u64;
+        const PARAMS = pw_sys::PW_NODE_CHANGE_MASK_PARAMS as u64;
     }
 }
 
@@ -221,7 +219,7 @@ impl<'a> NodeListenerLocalBuilder<'a> {
 
         let e = unsafe {
             let mut e: Pin<Box<pw_sys::pw_node_events>> = Box::pin(mem::zeroed());
-            e.version = VERSION_NODE_EVENTS;
+            e.version = pw_sys::PW_VERSION_NODE_EVENTS;
 
             if self.cbs.info.is_some() {
                 e.info = Some(node_events_info);

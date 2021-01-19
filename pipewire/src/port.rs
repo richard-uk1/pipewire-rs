@@ -10,8 +10,6 @@ use crate::proxy::{Listener, Proxy, ProxyT};
 use crate::registry::ObjectType;
 use spa::dict::ForeignDict;
 
-const VERSION_PORT_EVENTS: u32 = 0;
-
 #[derive(Debug)]
 pub struct Port {
     proxy: Proxy,
@@ -109,8 +107,8 @@ impl PortInfo {
 
 bitflags! {
     pub struct PortChangeMask: u64 {
-        const PROPS = (1 << 0);
-        const PARAMS = (1 << 1);
+        const PROPS = pw_sys::PW_PORT_CHANGE_MASK_PROPS as u64;
+        const PARAMS = pw_sys::PW_PORT_CHANGE_MASK_PARAMS as u64;
     }
 }
 
@@ -186,7 +184,7 @@ impl<'a> PortListenerLocalBuilder<'a> {
 
         let e = unsafe {
             let mut e: Pin<Box<pw_sys::pw_port_events>> = Box::pin(mem::zeroed());
-            e.version = VERSION_PORT_EVENTS;
+            e.version = pw_sys::PW_VERSION_PORT_EVENTS;
 
             if self.cbs.info.is_some() {
                 e.info = Some(port_events_info);

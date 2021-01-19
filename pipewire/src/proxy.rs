@@ -8,8 +8,6 @@ use std::pin::Pin;
 
 use crate::registry::ObjectType;
 
-const VERSION_PROXY_EVENTS: u32 = 0;
-
 #[derive(Debug)]
 pub struct Proxy(*mut c_void);
 
@@ -170,7 +168,7 @@ impl<'a> ProxyListenerLocalBuilder<'a> {
 
         let e = unsafe {
             let mut e: Pin<Box<pw_sys::pw_proxy_events>> = Box::pin(mem::zeroed());
-            e.version = VERSION_PROXY_EVENTS;
+            e.version = pw_sys::PW_VERSION_PROXY_EVENTS;
 
             if self.cbs.destroy.is_some() {
                 e.destroy = Some(proxy_destroy);

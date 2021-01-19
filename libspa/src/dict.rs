@@ -121,7 +121,7 @@ bitflags! {
     pub struct Flags: u32 {
         // These flags are redefinitions from
         // https://gitlab.freedesktop.org/pipewire/pipewire/-/blob/master/spa/include/spa/utils/dict.h
-        const SORTED = 0b00000001;
+        const SORTED = spa_sys::SPA_DICT_FLAG_SORTED;
     }
 }
 

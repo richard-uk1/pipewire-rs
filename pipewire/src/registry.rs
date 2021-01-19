@@ -12,8 +12,6 @@ use crate::error::Error;
 use crate::proxy::{Proxy, ProxyT};
 use spa::dict::ForeignDict;
 
-const VERSION_REGISTRY_EVENTS: u32 = 0;
-
 #[derive(Debug)]
 pub struct Registry(*mut pw_sys::pw_registry);
 
@@ -138,7 +136,7 @@ impl<'a> ListenerLocalBuilder<'a> {
 
         let e = unsafe {
             let mut e: Pin<Box<pw_sys::pw_registry_events>> = Box::pin(mem::zeroed());
-            e.version = VERSION_REGISTRY_EVENTS;
+            e.version = pw_sys::PW_VERSION_REGISTRY_EVENTS;
 
             if self.cbs.global.is_some() {
                 e.global = Some(registry_events_global);
@@ -178,10 +176,10 @@ impl<'a> ListenerLocalBuilder<'a> {
 
 bitflags! {
     pub struct Permission: u32 {
-        const R = 0o400;
-        const W = 0o200;
-        const X = 0o100;
-        const M = 0o010;
+        const R = pw_sys::PW_PERM_R;
+        const W = pw_sys::PW_PERM_W;
+        const X = pw_sys::PW_PERM_X;
+        const M = pw_sys::PW_PERM_M;
     }
 }
 
