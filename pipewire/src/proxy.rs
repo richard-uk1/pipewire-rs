@@ -3,12 +3,12 @@
 
 use libc::{c_char, c_void};
 use std::ffi::CStr;
+use std::fmt;
 use std::mem;
 use std::pin::Pin;
 
 use crate::registry::ObjectType;
 
-#[derive(Debug)]
 pub struct Proxy(*mut pw_sys::pw_proxy);
 
 // Wrapper around a proxy pointer
@@ -27,6 +27,20 @@ impl Proxy {
             cbs: ListenerLocalCallbacks::default(),
         }
     }
+
+    pub fn id(&self) -> u32 {
+        unsafe { pw_sys::pw_proxy_get_id(self.0) }
+    }
+
+    pub fn get_type(&self) -> (&str, u32) {
+        unsafe {
+            let mut version = 0;
+            let proxy_type = pw_sys::pw_proxy_get_type(self.0, &mut version);
+            let proxy_type = CStr::from_ptr(proxy_type);
+
+            (proxy_type.to_str().expect("invalid proxy type"), version)
+        }
+    }
 }
 
 impl Drop for Proxy {
@@ -34,6 +48,18 @@ impl Drop for Proxy {
         unsafe {
             pw_sys::pw_proxy_destroy(self.0);
         }
+    }
+}
+
+impl fmt::Debug for Proxy {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let (proxy_type, version) = self.get_type();
+
+        f.debug_struct("Proxy")
+            .field("id", &self.id())
+            .field("type", &proxy_type)
+            .field("version", &version)
+            .finish()
     }
 }
 
