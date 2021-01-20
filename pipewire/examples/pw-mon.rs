@@ -4,20 +4,20 @@
 use anyhow::Result;
 use pipewire as pw;
 use signal::Signal;
-use std::sync::Arc;
 use std::{cell::RefCell, collections::HashMap};
+use std::{rc::Rc, sync::Arc};
 use structopt::StructOpt;
 
 use pw::node::Node;
 use pw::port::Port;
 use pw::prelude::*;
 use pw::properties;
-use pw::proxy::{Listener, ProxyT};
+use pw::proxy::{Listener, ProxyListener, ProxyT};
 use pw::registry::ObjectType;
 
 struct Proxies {
     proxies_t: HashMap<u32, Box<dyn ProxyT>>,
-    listeners: HashMap<u32, Box<dyn Listener>>,
+    listeners: HashMap<u32, Vec<Box<dyn Listener>>>,
 }
 
 impl Proxies {
@@ -35,7 +35,19 @@ impl Proxies {
         };
 
         self.proxies_t.insert(proxy_id, proxy_t);
-        self.listeners.insert(proxy_id, listener);
+
+        let v = self.listeners.entry(proxy_id).or_insert_with(Vec::new);
+        v.push(listener);
+    }
+
+    fn add_proxy_listener(&mut self, proxy_id: u32, listener: ProxyListener) {
+        let v = self.listeners.entry(proxy_id).or_insert_with(Vec::new);
+        v.push(Box::new(listener));
+    }
+
+    fn remove(&mut self, proxy_id: u32) {
+        self.proxies_t.remove(&proxy_id);
+        self.listeners.remove(&proxy_id);
     }
 }
 
@@ -88,13 +100,13 @@ fn monitor(remote: Option<String>) -> Result<()> {
     let registry_weak = Arc::downgrade(&registry);
 
     // Proxies and their listeners need to stay alive so store them here
-    let proxies = RefCell::new(Proxies::new());
+    let proxies = Rc::new(RefCell::new(Proxies::new()));
 
     let _registry_listener = registry
         .add_listener_local()
         .global(move |obj| {
             if let Some(registry) = registry_weak.upgrade() {
-                match obj.type_ {
+                let p: Option<(Box<dyn ProxyT>, Box<dyn Listener>)> = match obj.type_ {
                     ObjectType::Node => {
                         let node: Node = registry.bind(&obj).unwrap();
                         let obj_listener = node
@@ -107,9 +119,7 @@ fn monitor(remote: Option<String>) -> Result<()> {
                             })
                             .register();
 
-                        proxies
-                            .borrow_mut()
-                            .add_proxy_t(Box::new(node), Box::new(obj_listener));
+                        Some((Box::new(node), Box::new(obj_listener)))
                     }
                     ObjectType::Port => {
                         let port: Port = registry.bind(&obj).unwrap();
@@ -123,9 +133,7 @@ fn monitor(remote: Option<String>) -> Result<()> {
                             })
                             .register();
 
-                        proxies
-                            .borrow_mut()
-                            .add_proxy_t(Box::new(port), Box::new(obj_listener));
+                        Some((Box::new(port), Box::new(obj_listener)))
                     }
                     ObjectType::Module
                     | ObjectType::Device
@@ -133,10 +141,33 @@ fn monitor(remote: Option<String>) -> Result<()> {
                     | ObjectType::Client
                     | ObjectType::Link => {
                         // TODO
+                        None
                     }
                     _ => {
                         dbg!(obj);
+                        None
                     }
+                };
+
+                if let Some((proxy_spe, listener_spe)) = p {
+                    let proxy = proxy_spe.upcast_ref();
+                    let proxy_id = proxy.id();
+                    // Use a weak ref to prevent references cycle between Proxy and proxies:
+                    // - ref on proxies in the closure, bound to the Proxy lifetime
+                    // - proxies owning a ref on Proxy as well
+                    let proxies_weak = Rc::downgrade(&proxies);
+
+                    let listener = proxy
+                        .add_listener_local()
+                        .removed(move || {
+                            if let Some(proxies) = proxies_weak.upgrade() {
+                                proxies.borrow_mut().remove(proxy_id);
+                            }
+                        })
+                        .register();
+
+                    proxies.borrow_mut().add_proxy_t(proxy_spe, listener_spe);
+                    proxies.borrow_mut().add_proxy_listener(proxy_id, listener);
                 }
             }
         })
