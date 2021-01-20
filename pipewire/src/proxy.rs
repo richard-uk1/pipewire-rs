@@ -9,15 +9,15 @@ use std::pin::Pin;
 use crate::registry::ObjectType;
 
 #[derive(Debug)]
-pub struct Proxy(*mut c_void);
+pub struct Proxy(*mut pw_sys::pw_proxy);
 
 // Wrapper around a proxy pointer
 impl Proxy {
-    pub(crate) fn new(proxy: *mut c_void) -> Self {
+    pub(crate) fn new(proxy: *mut pw_sys::pw_proxy) -> Self {
         Proxy(proxy)
     }
 
-    pub(crate) fn as_ptr(&self) -> *mut c_void {
+    pub(crate) fn as_ptr(&self) -> *mut pw_sys::pw_proxy {
         self.0
     }
 
@@ -32,7 +32,7 @@ impl Proxy {
 impl Drop for Proxy {
     fn drop(&mut self) {
         unsafe {
-            pw_sys::pw_proxy_destroy(self.0.cast());
+            pw_sys::pw_proxy_destroy(self.0);
         }
     }
 }

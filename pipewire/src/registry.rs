@@ -55,7 +55,7 @@ impl Registry {
             return Err(Error::NoMemory);
         }
 
-        let proxy = Proxy::new(proxy);
+        let proxy = Proxy::new(proxy.cast());
         Ok(T::new(proxy))
     }
 }
