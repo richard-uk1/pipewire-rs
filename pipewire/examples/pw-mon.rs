@@ -8,6 +8,7 @@ use std::{cell::RefCell, collections::HashMap};
 use std::{rc::Rc, sync::Arc};
 use structopt::StructOpt;
 
+use pw::link::Link;
 use pw::node::Node;
 use pw::port::Port;
 use pw::prelude::*;
@@ -135,11 +136,21 @@ fn monitor(remote: Option<String>) -> Result<()> {
 
                         Some((Box::new(port), Box::new(obj_listener)))
                     }
+                    ObjectType::Link => {
+                        let link: Link = registry.bind(&obj).unwrap();
+                        let obj_listener = link
+                            .add_listener_local()
+                            .info(|info| {
+                                dbg!(info);
+                            })
+                            .register();
+
+                        Some((Box::new(link), Box::new(obj_listener)))
+                    }
                     ObjectType::Module
                     | ObjectType::Device
                     | ObjectType::Factory
-                    | ObjectType::Client
-                    | ObjectType::Link => {
+                    | ObjectType::Client => {
                         // TODO
                         None
                     }

@@ -15,6 +15,7 @@ mod core_;
 pub use core_::*;
 mod properties;
 pub use properties::*;
+pub mod link;
 pub mod node;
 pub mod port;
 pub mod proxy;
