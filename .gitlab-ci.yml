@@ -116,6 +116,18 @@ test-stable:
     - cargo build --all-targets
     - cargo test --color=always
 
+rustdoc:
+  extends:
+    - .fedora
+    - .fdo.distribution-image@fedora
+    - .build
+  stage: extras
+  variables:
+    RUSTDOCFLAGS: '-Dwarnings'
+  script:
+    - rustdoc --version
+    - cargo doc --no-deps
+
 clippy:
   extends:
     - .fedora
