@@ -24,3 +24,4 @@ bitflags = "1.2"
 
 [dev-dependencies]
 structopt = "0.3"
+once_cell = "1.5.2"

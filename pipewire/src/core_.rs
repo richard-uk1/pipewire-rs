@@ -3,11 +3,15 @@
 
 use bitflags::bitflags;
 use libc::{c_char, c_void};
-use std::ffi::CStr;
+use std::ffi::{CStr, CString};
 use std::pin::Pin;
 use std::{fmt, mem};
 
-use crate::registry::Registry;
+use crate::{
+    proxy::{Proxy, ProxyT},
+    registry::Registry,
+    Error,
+};
 use spa::{dict::ForeignDict, spa_interface_call_method};
 
 pub const PW_ID_CORE: u32 = pw_sys::PW_ID_CORE;
@@ -52,6 +56,84 @@ impl Core {
     pub fn sync(&self, seq: i32) -> i32 {
         unsafe {
             spa_interface_call_method!(self.0, pw_sys::pw_core_methods, sync, PW_ID_CORE, seq)
+        }
+    }
+
+    /// Create a new object on the PipeWire server from a factory.
+    ///
+    /// You will need specify what type you are expecting to be constructed by either using type inference or the
+    /// turbofish syntax.
+    ///
+    /// # Parameters
+    /// - `factory_name` the name of the factory to use
+    /// - `properties` extra properties that the new object will have
+    ///
+    /// # Panics
+    /// If `factory_name` contains a null byte.
+    ///
+    /// # Returns
+    /// One of:
+    /// - `Ok(P)` on success, where `P` is the newly created object
+    /// - `Err(Error::CreationFailed)` if the object could not be created
+    /// - `Err(Error::WrongProxyType)` if the created type does not match the type `P` that the user is trying to create
+    ///
+    /// # Examples
+    /// Creating a new link:
+    // Doctest ignored, as the factory name is hardcoded, but may be different on different systems.
+    /// ```ignore
+    /// use pipewire as pw;
+    ///
+    /// pw::init();
+    ///
+    /// let mainloop = pw::MainLoop::new().expect("Failed to create Pipewire Mainloop");
+    /// let context = pw::Context::new(&mainloop).expect("Failed to create Pipewire Context");
+    /// let core = context
+    ///     .connect(None)
+    ///     .expect("Failed to connect to Pipewire Core");
+    ///
+    /// // This call uses turbofish syntax to specify that we want a link.
+    /// let link = core.create_object::<pw::link::Link, _>(
+    ///     // The actual name for a link factory might be different for your system,
+    ///     // you should probably obtain a factory from the registry.
+    ///     "link-factory",
+    ///     &pw::properties! {
+    ///         "link.output.port" => "1",
+    ///         "link.input.port" => "2",
+    ///         "link.output.node" => "3",
+    ///         "link.input.node" => "4"
+    ///     },
+    /// )
+    /// .expect("Failed to create object");
+    /// ```
+    ///
+    /// See `pipewire/examples/create-delete-remote-objects.rs` in the crates repository for a more detailed example.
+    pub fn create_object<P: ProxyT, D: crate::spa::dict::ReadableDict>(
+        &self,
+        factory_name: &str,
+        properties: &D,
+    ) -> Result<P, Error> {
+        let type_ = P::type_();
+        let factory_name = CString::new(factory_name).expect("Null byte in factory_name parameter");
+        let type_str = CString::new(type_.to_string())
+            .expect("Null byte in string representation of type_ parameter");
+
+        let res = unsafe {
+            spa_interface_call_method!(
+                self.0,
+                pw_sys::pw_core_methods,
+                create_object,
+                factory_name.as_ptr(),
+                type_str.as_ptr(),
+                type_.client_version(),
+                properties.get_dict_ptr(),
+                0
+            )
+        };
+
+        if !res.is_null() {
+            Proxy::new(res.cast()).downcast().map_err(|(_, e)| e)
+        } else {
+            Err(Error::CreationFailed)
         }
     }
 }
