@@ -21,16 +21,19 @@ impl ProxyT for Node {
         ObjectType::Node
     }
 
-    fn new(proxy: Proxy) -> Self {
-        Self { proxy }
-    }
-
     fn upcast(self) -> Proxy {
         self.proxy
     }
 
     fn upcast_ref(&self) -> &Proxy {
         &self.proxy
+    }
+
+    unsafe fn from_proxy_unchecked(proxy: Proxy) -> Self
+    where
+        Self: Sized,
+    {
+        Self { proxy }
     }
 }
 

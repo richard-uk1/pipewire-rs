@@ -56,7 +56,7 @@ impl Registry {
         }
 
         let proxy = Proxy::new(proxy.cast());
-        Ok(T::new(proxy))
+        unsafe { Ok(T::from_proxy_unchecked(proxy)) }
     }
 }
 

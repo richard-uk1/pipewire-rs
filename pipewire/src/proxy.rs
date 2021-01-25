@@ -71,12 +71,20 @@ pub trait ProxyT {
     where
         Self: Sized;
 
-    fn new(proxy: Proxy) -> Self
-    where
-        Self: Sized;
-
     fn upcast(self) -> Proxy;
     fn upcast_ref(&self) -> &Proxy;
+
+    /// Downcast the provided proxy to `Self` without checking that the type matches.
+    ///
+    /// This function should not be used by applications.
+    /// If you really do need a way to downcast a proxy to it's type, please open an issue.
+    ///
+    /// # Safety
+    /// It must be manually ensured that the provided proxy is actually a proxy representing the created type. \
+    /// Otherwise, undefined behaviour may occur.
+    unsafe fn from_proxy_unchecked(proxy: Proxy) -> Self
+    where
+        Self: Sized;
 }
 
 // Trait implemented by listener on high level proxy wrappers.
