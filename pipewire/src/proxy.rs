@@ -32,13 +32,17 @@ impl Proxy {
         unsafe { pw_sys::pw_proxy_get_id(self.0) }
     }
 
-    pub fn get_type(&self) -> (&str, u32) {
+    /// Get the type of the proxy as well as it's version.
+    pub fn get_type(&self) -> (crate::registry::ObjectType, u32) {
         unsafe {
             let mut version = 0;
             let proxy_type = pw_sys::pw_proxy_get_type(self.0, &mut version);
             let proxy_type = CStr::from_ptr(proxy_type);
 
-            (proxy_type.to_str().expect("invalid proxy type"), version)
+            (
+                ObjectType::from_str(proxy_type.to_str().expect("invalid proxy type")),
+                version,
+            )
         }
     }
 }

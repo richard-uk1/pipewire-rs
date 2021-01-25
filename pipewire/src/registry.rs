@@ -193,7 +193,7 @@ macro_rules! object_type {
         }
 
         impl ObjectType {
-            fn from_str(s: &str) -> ObjectType {
+            pub(crate) fn from_str(s: &str) -> ObjectType {
                 match s {
                     $(
                     concat!("PipeWire:Interface:", stringify!($x)) => ObjectType::$x,
@@ -211,7 +211,7 @@ macro_rules! object_type {
                 }
             }
 
-            fn client_version(&self) -> u32 {
+            pub(crate) fn client_version(&self) -> u32 {
                 match self {
                     $(
                         ObjectType::$x => pw_sys::$version,
