@@ -30,10 +30,6 @@ impl Registry {
     }
 
     pub fn bind<T: ProxyT>(&self, object: &GlobalObject) -> Result<T, Error> {
-        if object.type_ != T::type_() {
-            return Err(Error::WrongProxyType);
-        }
-
         let proxy = unsafe {
             let type_ = CString::new(object.type_.to_str()).unwrap();
             let version = object.type_.client_version();
@@ -55,8 +51,7 @@ impl Registry {
             return Err(Error::NoMemory);
         }
 
-        let proxy = Proxy::new(proxy.cast());
-        unsafe { Ok(T::from_proxy_unchecked(proxy)) }
+        Proxy::new(proxy.cast()).downcast().map_err(|(_, e)| e)
     }
 }
 

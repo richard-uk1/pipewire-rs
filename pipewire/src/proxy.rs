@@ -7,7 +7,7 @@ use std::fmt;
 use std::mem;
 use std::pin::Pin;
 
-use crate::registry::ObjectType;
+use crate::{registry::ObjectType, Error};
 
 pub struct Proxy(*mut pw_sys::pw_proxy);
 
@@ -43,6 +43,19 @@ impl Proxy {
                 ObjectType::from_str(proxy_type.to_str().expect("invalid proxy type")),
                 version,
             )
+        }
+    }
+
+    /// Attempt to downcast the proxy to the provided type.
+    ///
+    /// The downcast will fail if the type that the proxy represents does not match the provided type. \
+    /// In that case, the function returns `(self, Error::WrongProxyType)` so that the proxy is not lost.
+    pub(crate) fn downcast<P: ProxyT>(self) -> Result<P, (Self, Error)> {
+        // Make sure the proxy we got has the type that is requested
+        if P::type_() == self.get_type().0 {
+            unsafe { Ok(P::from_proxy_unchecked(self)) }
+        } else {
+            Err((self, Error::WrongProxyType))
         }
     }
 }
