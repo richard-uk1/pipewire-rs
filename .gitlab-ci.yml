@@ -21,7 +21,7 @@ include:
 .fedora:
   variables:
     # Update this tag when you want to trigger a rebuild
-    FDO_DISTRIBUTION_TAG: '2020-11-02.0'
+    FDO_DISTRIBUTION_TAG: '2021-02-11.1'
     FDO_DISTRIBUTION_VERSION: '33'
     # findutils: used by the .build script below
     # dbus-devel: required by pipewire
@@ -46,6 +46,7 @@ include:
       wget
       openssl-devel
       make
+      perl-FindBin
     FDO_DISTRIBUTION_EXEC: >-
       pip3 install git+http://gitlab.freedesktop.org/freedesktop/ci-templates &&
       bash ci/install-rust.sh stable
