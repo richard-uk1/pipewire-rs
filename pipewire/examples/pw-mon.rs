@@ -14,7 +14,7 @@ use pw::port::Port;
 use pw::prelude::*;
 use pw::properties;
 use pw::proxy::{Listener, ProxyListener, ProxyT};
-use pw::registry::ObjectType;
+use pw::types::ObjectType;
 
 struct Proxies {
     proxies_t: HashMap<u32, Box<dyn ProxyT>>,

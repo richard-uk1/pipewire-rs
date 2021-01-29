@@ -7,7 +7,7 @@ use std::fmt;
 use std::mem;
 use std::pin::Pin;
 
-use crate::{registry::ObjectType, Error};
+use crate::{types::ObjectType, Error};
 
 pub struct Proxy(*mut pw_sys::pw_proxy);
 
@@ -33,7 +33,7 @@ impl Proxy {
     }
 
     /// Get the type of the proxy as well as it's version.
-    pub fn get_type(&self) -> (crate::registry::ObjectType, u32) {
+    pub fn get_type(&self) -> (ObjectType, u32) {
         unsafe {
             let mut version = 0;
             let proxy_type = pw_sys::pw_proxy_get_type(self.0, &mut version);

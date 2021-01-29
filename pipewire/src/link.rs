@@ -9,7 +9,7 @@ use spa::dict::ForeignDict;
 
 use crate::{
     proxy::{Listener, Proxy, ProxyT},
-    registry::ObjectType,
+    types::ObjectType,
 };
 
 #[derive(Debug)]

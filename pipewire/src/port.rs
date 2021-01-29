@@ -6,8 +6,10 @@ use libc::c_void;
 use std::pin::Pin;
 use std::{fmt, mem};
 
-use crate::proxy::{Listener, Proxy, ProxyT};
-use crate::registry::ObjectType;
+use crate::{
+    proxy::{Listener, Proxy, ProxyT},
+    types::ObjectType,
+};
 use spa::dict::ForeignDict;
 
 #[derive(Debug)]

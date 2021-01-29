@@ -21,6 +21,7 @@ pub mod port;
 pub mod proxy;
 pub mod registry;
 pub use spa;
+pub mod types;
 mod utils;
 
 // Re-export all the traits in a prelude module, so that applications
