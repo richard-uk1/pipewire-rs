@@ -8,7 +8,7 @@ fn main() {
     let libs = system_deps::Config::new()
         .probe()
         .expect("Cannot find libpipewire");
-    let libpipewire = libs.get("libpipewire").unwrap();
+    let libpipewire = libs.get_by_name("libpipewire").unwrap();
 
     // Tell cargo to invalidate the built crate whenever the wrapper changes
     println!("cargo:rerun-if-changed=wrapper.h");
