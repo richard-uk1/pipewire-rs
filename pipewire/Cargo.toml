@@ -13,9 +13,9 @@ documentation = "https://pipewire.pages.freedesktop.org/pipewire-rs/pipewire/"
 keywords = ["pipewire", "multimedia", "audio", "video"]
 
 [dependencies]
-pw_sys = { package = "pipewire-sys", version= "0", path = "../pipewire-sys" }
-spa_sys = { package = "libspa-sys", version="0", path = "../libspa-sys" }
-spa = { package = "libspa", path = "../libspa" }
+pw_sys = { package = "pipewire-sys", version = "0", path = "../pipewire-sys" }
+spa_sys = { package = "libspa-sys", version ="0", path = "../libspa-sys" }
+spa = { package = "libspa", version = "0", path = "../libspa" }
 anyhow = "1"
 thiserror = "1"
 libc = "0.2"
