@@ -55,11 +55,22 @@ impl fmt::Debug for Plugin {
 }
 
 impl Plugin {
-    /// Open the plugin at `path`.
+    /// Open a plugin.
+    ///
+    /// Search for a plugin at `path` in the default plugin directory.
+    #[inline]
     pub fn open(path: impl AsRef<Path>) -> Result<Self> {
         let path = Path::new(SPA_ROOT).join(path.as_ref());
+        Self::open_absolute_path(&path)
+    }
+
+    /// Open the plugin at `path`.
+    ///
+    /// Path is either absolute, or relative to the current working directory of the process this
+    /// function was called from.
+    pub fn open_absolute_path(path: impl AsRef<Path>) -> Result<Self> {
         unsafe {
-            let lib = Library::new(path)?;
+            let lib = Library::new(path.as_ref())?;
             let plugin = Plugin { lib: Rc::new(lib) };
             // Check we can load the factory enum function
             plugin.enum_fn()?;
@@ -125,7 +136,11 @@ impl<'a> Iterator for FactoryIter<'a> {
         let enum_fn = self.plugin.enum_fn().unwrap();
         let mut factory: *const spa_handle_factory = ptr::null();
         // There really shouldn't be any errors here, so we convert them to panics.
-        let ret = unsafe { err_from_code(enum_fn(&mut factory, &mut self.index)).unwrap() };
+        let ret = unsafe {
+            SpaResult::from_raw(enum_fn(&mut factory, &mut self.index))
+                .into_sync_result()
+                .unwrap()
+        };
         if ret == 0 {
             // signals end of factories enumeration.
             None
@@ -205,13 +220,14 @@ impl<'a> Factory<'a> {
         unsafe {
             let layout = self.layout();
             let handle = alloc::alloc_zeroed(layout) as *mut spa_handle;
-            let ret = err_from_code((self.raw.init.unwrap())(
+            let ret = SpaResult::from_raw((self.raw.init.unwrap())(
                 self.raw as *const _,
                 handle,
                 ptr::null(),
                 ptr::null(),
                 0,
-            ));
+            ))
+            .into_sync_result();
             if let Err(e) = ret {
                 alloc::dealloc(handle as *mut u8, layout);
                 // TODO handle error (return Result)
@@ -246,11 +262,12 @@ impl<'a> Iterator for InterfaceInfoIter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         unsafe {
             let mut interface: *const spa_interface_info = ptr::null();
-            let ret = err_from_code(((*self.factory.raw).enum_interface_info.unwrap())(
+            let ret = SpaResult::from_raw(((*self.factory.raw).enum_interface_info.unwrap())(
                 self.factory.raw,
                 &mut interface,
                 &mut self.index,
             ))
+            .into_sync_result()
             .unwrap();
             if ret == 0 {
                 None
@@ -325,11 +342,13 @@ impl Handle {
         let name = CStr::from_bytes_with_nul(T::NAME).unwrap();
         let mut iface: *mut c_void = ptr::null_mut();
         unsafe {
-            if let Err(e) = err_from_code(((*self.handle.inner).get_interface.unwrap())(
+            if let Err(e) = SpaResult::from_raw(((*self.handle.inner).get_interface.unwrap())(
                 self.handle.inner,
                 name.as_ptr(),
                 &mut iface,
-            )) {
+            ))
+            .into_sync_result()
+            {
                 match e.raw_os_error() {
                     Some(libc::ENOTSUP) => return None,
                     _ => panic!(e),
@@ -364,7 +383,7 @@ impl RawHandle {
             let ret = (*self.inner).clear.unwrap()(self.inner);
             alloc::dealloc(self.inner as *mut u8, mem_layout);
             mem::forget(self);
-            err_from_code(ret).map(|_| ())
+            SpaResult::from_raw(ret).into_sync_result().map(|_| ())
         }
     }
 }
@@ -391,21 +410,120 @@ pub struct Interface<'a, T> {
 }
 */
 
-/// Convert an error code to a rust `io::Result`.
-fn err_from_code(val: i32) -> io::Result<i32> {
-    if val < 0 {
-        let val = -val;
-        // Async test copied from macros.
-        if val & (1 << 30) == 1 << 30 {
-            // async in progress. io::ErrorKind doesn't have EINPROGRESS, so use `Other`.
-            // TODO maybe we should return `Ok(val)` for this.
-            Err(io::Error::new(io::ErrorKind::Other, "in progress"))
-        } else {
-            // At time of reading, simply forwards to `strerror`, so we can go and create a
-            // `io::Error`.
-            Err(io::Error::from_raw_os_error(val))
+#[derive(Debug, Copy, Clone)]
+pub struct SpaResult(i32);
+/*
+    /// Function successfully completed.
+    Sync {
+        /// The returned value.
+        ///
+        /// The meaning is function-specific.
+        val: i32,
+    },
+    /// Function is running and will return asynchronously.
+    Async {
+        /// The sequence number of the async result.
+        ///
+        /// This can be used to identify the result later. It should be considered an opaque value.
+        seq: i32,
+    },
+}
+*/
+
+// Top bit is sign, next bit is async flag, everything else is the value/sequence number.
+const SPA_ASYNC_BIT: i32 = 1 << 30; // last bit before sign.
+const SPA_VAL_MASK: i32 = SPA_ASYNC_BIT - 1;
+
+impl SpaResult {
+    pub fn from_raw(res: i32) -> Self {
+        Self(res)
+    }
+
+    pub fn into_raw(self) -> i32 {
+        self.0
+    }
+
+    pub fn new_ok(val: i32) -> Self {
+        if (val & !SPA_VAL_MASK) != 0 {
+            panic!("val must be positive number <= 2147483647");
         }
-    } else {
-        Ok(val)
+        SpaResult(val)
+    }
+
+    pub fn new_async(seq: i32) -> Self {
+        if (seq & !SPA_VAL_MASK) != 0 {
+            panic!("seq must be positive number <= 2147483647");
+        }
+        SpaResult(seq | SPA_ASYNC_BIT)
+    }
+
+    pub fn new_err(code: i32) -> Self {
+        if code <= 0 {
+            panic!("error code must be > 0");
+        }
+        SpaResult(-code)
+    }
+
+    /// Unwrap the sync output value, panicking if the result was asyncronous or an error.
+    pub fn unwrap_ok(self) -> i32 {
+        if (self.0 & !SPA_VAL_MASK) != 0 {
+            panic!("value was not a synchronous success");
+        }
+        self.0
+    }
+
+    /// Unwrap the async sequence number, panicking if the result was syncronous or an error.
+    pub fn unwrap_async(self) -> i32 {
+        if (self.0 & !SPA_VAL_MASK) != SPA_ASYNC_BIT {
+            panic!("value was not an asynchronous success");
+        }
+        self.0 & SPA_VAL_MASK
+    }
+
+    /// Unwrap the error code, panicking if the result was not an error.
+    pub fn unwrap_error(self) -> io::Error {
+        if self.0 >= 0 {
+            panic!("expected error");
+        }
+        io::Error::from_raw_os_error(-self.0)
+    }
+
+    /// Is this result ok.
+    pub fn is_ok(self) -> bool {
+        self.0 & !SPA_VAL_MASK == 0
+    }
+
+    /// Is this result asynchronous.
+    pub fn is_async(self) -> bool {
+        self.0 & !SPA_VAL_MASK == SPA_ASYNC_BIT
+    }
+
+    /// Is this result an error.
+    pub fn is_err(self) -> bool {
+        self.0 < 0
+    }
+
+    /// Convert to a result, panicking if async.
+    pub fn into_sync_result(self) -> io::Result<i32> {
+        if self.is_async() {
+            panic!("expected sync result, found async");
+        }
+        if self.0 >= 0 {
+            Ok(self.0)
+        } else {
+            Err(io::Error::from_raw_os_error(-self.0))
+        }
+    }
+
+    /// Convert to an async result, panicking if sync.
+    pub fn into_async_result(self) -> io::Result<i32> {
+        if self.is_ok() {
+            panic!("expected async result, found sync");
+        }
+        if self.0 >= 0 {
+            Ok(self.0 & SPA_VAL_MASK)
+        } else {
+            Err(io::Error::from_raw_os_error(-self.0))
+        }
     }
 }

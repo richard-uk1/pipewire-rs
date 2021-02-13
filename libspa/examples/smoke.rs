@@ -7,16 +7,21 @@ use log::LevelFilter;
 
 fn main() {
     let plugin = Plugin::open("support/libspa-support.so").unwrap();
-    println!("{:#?}", plugin);
+    println!("{:#?}\n", plugin);
+
+    assert!(plugin.factory("randomomom\0").is_none());
+
     let mut handle = plugin.factory(SUPPORT_LOG).unwrap().instantiate();
     let mut logger: Log = handle.interface().unwrap();
-    println!("{:?}", logger.level());
+    println!("Log level: {:?}", logger.level());
     libspa::error!(logger, "an error");
     libspa::warn!(logger, "a warning");
     libspa::info!(logger, "info");
     libspa::debug!(logger, "debug");
     libspa::trace!(logger, "a trace");
+
     logger.set_level(LevelFilter::Trace);
+    println!("Log level: {:?}", logger.level());
     libspa::debug!(logger, "debug");
     libspa::trace!(logger, "a trace");
     println!();

@@ -1,7 +1,9 @@
 //! Types and methods to wrap the "support" standard plugin.
 
 use log::{Level, LevelFilter};
-use spa_sys::{spa_cpu, spa_cpu_methods, spa_log, spa_log_methods, spa_system, spa_system_methods};
+use spa_sys::{
+    spa_cpu, spa_cpu_methods, spa_log, spa_log_methods, spa_loop, spa_system, spa_system_methods,
+};
 use std::{
     convert::TryInto,
     ffi::CString,
@@ -9,7 +11,7 @@ use std::{
     os::raw::{c_int, c_void},
 };
 
-use crate::Interface;
+use crate::{interface::Interface, SpaResult};
 
 // Log
 
@@ -203,7 +205,7 @@ impl<'a> Cpu<'a> {
     }
 
     pub fn force_flags(&mut self, flags: u32) -> io::Result<()> {
-        crate::err_from_code(unsafe {
+        SpaResult::from_raw(unsafe {
             crate::spa_interface_call_method!(
                 self.raw as *mut spa_cpu,
                 spa_cpu_methods,
@@ -211,6 +213,7 @@ impl<'a> Cpu<'a> {
                 flags
             )
         })
+        .into_sync_result()
         .map(|_| ())
     }
 
@@ -230,3 +233,25 @@ impl<'a> Cpu<'a> {
         }
     }
 }
+
+// Loop
+
+pub struct Loop<'a> {
+    raw: &'a mut spa_loop,
+}
+
+unsafe impl<'a> Interface<'a> for Loop<'a> {
+    const NAME: &'static [u8] = b"Spa:Pointer:Interface:Loop\0";
+    const VERSION: u32 = 0;
+    type Type = spa_loop;
+
+    fn from_raw(raw: &'a mut spa_loop) -> Self {
+        Loop { raw }
+    }
+}
+
+/*
+impl<'a> Loop<'a> {
+    pub fn add_soiurce
+}
+*/
