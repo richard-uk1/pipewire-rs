@@ -97,12 +97,10 @@ impl Plugin {
     /// Get a factory by name. Equivalent to
     ///
     /// ```ignore
-    /// self.factories().filter(|f| f.name() == name).next()
+    /// self.factories().find(|f| f.name() == name)
     /// ```
     pub fn factory<'a>(&'a self, name: &str) -> Option<Factory<'a>> {
-        self.factories()
-            .filter(|factory| factory.name() == name)
-            .next()
+        self.factories().find(|factory| factory.name() == name)
     }
 }
 
@@ -132,14 +130,15 @@ impl<'a> Iterator for FactoryIter<'a> {
             // signals end of factories enumeration.
             None
         } else {
-            Some(Factory::new(factory, self.plugin))
+            // Safety: lifetime of factory is tied to plugin.
+            unsafe { Some(Factory::new(&*factory, self.plugin)) }
         }
     }
 }
 
 /// A factory that can create objects and return handles to them.
 pub struct Factory<'a> {
-    raw: *const spa_handle_factory,
+    raw: &'a spa_handle_factory,
     plugin: &'a Plugin,
 }
 
@@ -161,18 +160,18 @@ impl fmt::Debug for Factory<'_> {
 }
 
 impl<'a> Factory<'a> {
-    fn new(raw: *const spa_handle_factory, plugin: &'a Plugin) -> Self {
+    fn new(raw: &'a spa_handle_factory, plugin: &'a Plugin) -> Self {
         Factory { raw, plugin }
     }
 
     /// The version of the factory.
     pub fn version(&self) -> u32 {
-        unsafe { (*self.raw).version }
+        self.raw.version
     }
 
     /// Get the name of the factory.
     pub fn name(&self) -> Cow<'a, str> {
-        unsafe { CStr::from_ptr((*self.raw).name).to_string_lossy() }
+        unsafe { CStr::from_ptr(self.raw.name).to_string_lossy() }
     }
 
     /// The size required to store an object from this factory.
@@ -180,7 +179,7 @@ impl<'a> Factory<'a> {
         unsafe {
             // Converting from u32 to ptr width should never fail (would require use of a 16 bit
             // machine and reasonably large object, >65kB)
-            ((*self.raw).get_size.unwrap())(self.raw, ptr::null())
+            (self.raw.get_size.unwrap())(self.raw, ptr::null())
                 .try_into()
                 .unwrap()
         }
@@ -206,8 +205,8 @@ impl<'a> Factory<'a> {
         unsafe {
             let layout = self.layout();
             let handle = alloc::alloc_zeroed(layout) as *mut spa_handle;
-            let ret = err_from_code(((*self.raw).init.unwrap())(
-                self.raw,
+            let ret = err_from_code((self.raw.init.unwrap())(
+                self.raw as *const _,
                 handle,
                 ptr::null(),
                 ptr::null(),

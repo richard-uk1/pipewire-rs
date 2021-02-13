@@ -162,17 +162,20 @@ unsafe impl<'a> Interface<'a> for System<'a> {
 }
 
 impl<'a> System<'a> {
-    pub fn read(&mut self, fd: c_int, buf: *mut c_void, count: u64) -> i64 {
-        unsafe {
-            crate::spa_interface_call_method!(
-                self.raw as *mut spa_system,
-                spa_system_methods,
-                read,
-                fd,
-                buf,
-                count
-            )
-        }
+    /// Access to the `read` syscall
+    ///
+    /// # Safety
+    ///
+    /// Matches safety requirements of the underlying syscall.
+    pub unsafe fn read(&mut self, fd: c_int, buf: *mut c_void, count: u64) -> i64 {
+        crate::spa_interface_call_method!(
+            self.raw as *mut spa_system,
+            spa_system_methods,
+            read,
+            fd,
+            buf,
+            count
+        )
     }
 }
 
