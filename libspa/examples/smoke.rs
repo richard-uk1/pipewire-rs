@@ -8,8 +8,8 @@ use log::LevelFilter;
 fn main() {
     let plugin = Plugin::open("support/libspa-support.so").unwrap();
     println!("{:#?}", plugin);
-    let handle = plugin.factory(SUPPORT_LOG).unwrap().instantiate();
-    let mut logger = Log::from_handle(&handle).unwrap();
+    let mut handle = plugin.factory(SUPPORT_LOG).unwrap().instantiate();
+    let mut logger: Log = handle.interface().unwrap();
     println!("{:?}", logger.level());
     libspa::error!(logger, "an error");
     libspa::warn!(logger, "a warning");
@@ -21,8 +21,8 @@ fn main() {
     libspa::trace!(logger, "a trace");
     println!();
 
-    let handle = plugin.factory(SUPPORT_CPU).unwrap().instantiate();
-    let cpu = Cpu::from_handle(&handle).unwrap();
+    let mut handle = plugin.factory(SUPPORT_CPU).unwrap().instantiate();
+    let mut cpu: Cpu = handle.interface().unwrap();
     libspa::info!(logger, "Cpu flags: {:b}", cpu.flags());
     libspa::info!(logger, "Cpu count: {}", cpu.count());
     libspa::info!(logger, "Cpu max align: {}", cpu.max_align());

@@ -9,19 +9,22 @@ use crate::{names::SUPPORT_LOG, Handle, Interface, Result};
 // Log
 
 pub struct Log<'a> {
-    interface: Interface<'a, spa_log>,
+    raw: &'a mut spa_log,
+}
+
+unsafe impl<'a> Interface<'a> for Log<'a> {
+    const NAME: &'static [u8] = b"Spa:Pointer:Interface:Log\0";
+    type Type = spa_log;
+
+    fn from_raw(raw: &'a mut spa_log) -> Self {
+        Log { raw }
+    }
 }
 
 impl<'a> Log<'a> {
-    pub fn from_handle(handle: &'a Handle) -> Result<Self> {
-        // TODO I think the guide is out of date here.
-        let interface = unsafe { handle.interface(b"Spa:Pointer:Interface:Log\0")? };
-        Ok(Log { interface })
-    }
-
     /// The lowest level of log messages that will be displayed.
     pub fn level(&self) -> LevelFilter {
-        match unsafe { (*self.interface.inner).level } {
+        match self.raw.level {
             0 => LevelFilter::Off,
             1 => LevelFilter::Error,
             2 => LevelFilter::Warn,
@@ -40,9 +43,7 @@ impl<'a> Log<'a> {
             LevelFilter::Debug => 4,
             LevelFilter::Trace => 5,
         };
-        unsafe {
-            (*self.interface.inner).level = level;
-        }
+        self.raw.level = level;
     }
 
     /// Log a message.
@@ -54,7 +55,13 @@ impl<'a> Log<'a> {
     /// # Panics
     ///
     /// The function will panic if `msg` contains interior null bytes.
-    pub unsafe fn log(&self, level: Level, file: &'static str, line: u32, msg: impl Into<String>) {
+    pub unsafe fn log(
+        &mut self,
+        level: Level,
+        file: &'static str,
+        line: u32,
+        msg: impl Into<String>,
+    ) {
         // TODO mark branch unlikely once rustc supports this (currently only possible using
         // nightly-only intrinsics)
         if level <= self.level() {
@@ -69,7 +76,7 @@ impl<'a> Log<'a> {
                 Level::Trace => 5,
             };
             crate::spa_interface_call_method!(
-                self.interface.inner,
+                self.raw as *mut spa_log,
                 spa_log_methods,
                 log,
                 level,
@@ -133,38 +140,44 @@ macro_rules! trace {
 ///
 /// Currently a stub. TODO add methods
 pub struct System<'a> {
-    interface: Interface<'a, spa_system>,
+    raw: &'a mut spa_system,
 }
 
-impl<'a> System<'a> {
-    pub fn from_handle(handle: &'a Handle) -> Result<Self> {
-        let interface = unsafe { handle.interface(b"Spa:Pointer:Interface:System\0")? };
-        Ok(System { interface })
+unsafe impl<'a> Interface<'a> for System<'a> {
+    const NAME: &'static [u8] = b"Spa:Pointer:Interface:System\0";
+    type Type = spa_system;
+
+    fn from_raw(raw: &'a mut spa_system) -> Self {
+        System { raw }
     }
 }
 
 // CPU
 
 pub struct Cpu<'a> {
-    interface: Interface<'a, spa_cpu>,
+    raw: &'a mut spa_cpu,
+}
+
+unsafe impl<'a> Interface<'a> for Cpu<'a> {
+    const NAME: &'static [u8] = b"Spa:Pointer:Interface:CPU\0";
+    type Type = spa_cpu;
+
+    fn from_raw(raw: &'a mut spa_cpu) -> Self {
+        Cpu { raw }
+    }
 }
 
 impl<'a> Cpu<'a> {
-    pub fn from_handle(handle: &'a Handle) -> Result<Self> {
-        let interface = unsafe { handle.interface(b"Spa:Pointer:Interface:CPU\0")? };
-        Ok(Cpu { interface })
-    }
-
-    pub fn flags(&self) -> u32 {
+    pub fn flags(&mut self) -> u32 {
         unsafe {
-            crate::spa_interface_call_method!(self.interface.inner, spa_cpu_methods, get_flags,)
+            crate::spa_interface_call_method!(self.raw as *mut spa_cpu, spa_cpu_methods, get_flags,)
         }
     }
 
     pub fn force_flags(&mut self, flags: u32) -> io::Result<()> {
         crate::err_from_code(unsafe {
             crate::spa_interface_call_method!(
-                self.interface.inner,
+                self.raw as *mut spa_cpu,
                 spa_cpu_methods,
                 force_flags,
                 flags
@@ -173,15 +186,19 @@ impl<'a> Cpu<'a> {
         .map(|_| ())
     }
 
-    pub fn count(&self) -> u32 {
+    pub fn count(&mut self) -> u32 {
         unsafe {
-            crate::spa_interface_call_method!(self.interface.inner, spa_cpu_methods, get_count,)
+            crate::spa_interface_call_method!(self.raw as *mut spa_cpu, spa_cpu_methods, get_count,)
         }
     }
 
-    pub fn max_align(&self) -> u32 {
+    pub fn max_align(&mut self) -> u32 {
         unsafe {
-            crate::spa_interface_call_method!(self.interface.inner, spa_cpu_methods, get_max_align,)
+            crate::spa_interface_call_method!(
+                self.raw as *mut spa_cpu,
+                spa_cpu_methods,
+                get_max_align,
+            )
         }
     }
 }

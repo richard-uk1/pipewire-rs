@@ -1,5 +1,6 @@
 // Copyright 2020, Collabora Ltd.
 // SPDX-License-Identifier: MIT
+use crate::interface::Interface;
 use anyhow::Error;
 use libloading::{Library, Symbol};
 use spa_sys::{
@@ -8,12 +9,9 @@ use spa_sys::{
 use std::{
     alloc,
     borrow::Cow,
-    collections::HashMap,
     convert::TryInto,
-    ffi::{CStr, CString},
-    fmt, io,
-    marker::PhantomData,
-    mem,
+    ffi::CStr,
+    fmt, io, mem,
     mem::align_of,
     os::raw::{c_int, c_void},
     path::Path,
@@ -257,7 +255,8 @@ impl<'a> Iterator for InterfaceInfoIter<'a> {
             if ret == 0 {
                 None
             } else {
-                Some(InterfaceInfo::new(interface))
+                // Safety: lifetime of object is tied to self, so ref is always valid.
+                Some(InterfaceInfo::new(&*interface))
             }
         }
     }
@@ -265,8 +264,7 @@ impl<'a> Iterator for InterfaceInfoIter<'a> {
 
 /// Info about an interface to an object.
 pub struct InterfaceInfo<'a> {
-    raw: *const spa_interface_info,
-    lifetime: PhantomData<&'a ()>,
+    raw: &'a spa_interface_info,
 }
 
 impl fmt::Debug for InterfaceInfo<'_> {
@@ -279,7 +277,7 @@ impl fmt::Debug for InterfaceInfo<'_> {
 
 impl<'a> InterfaceInfo<'a> {
     fn type_(&self) -> Cow<'a, str> {
-        unsafe { CStr::from_ptr((*self.raw).type_).to_string_lossy() }
+        unsafe { CStr::from_ptr(self.raw.type_).to_string_lossy() }
     }
 }
 
@@ -287,11 +285,8 @@ impl<'a> InterfaceInfo<'a> {
     /// # Safety
     ///
     /// The user must ensure `raw` lives at least as long as `'a`.
-    unsafe fn new(raw: *const spa_interface_info) -> Self {
-        InterfaceInfo {
-            raw,
-            lifetime: PhantomData,
-        }
+    unsafe fn new(raw: &'a spa_interface_info) -> Self {
+        InterfaceInfo { raw }
     }
 }
 
@@ -301,6 +296,8 @@ impl<'a> InterfaceInfo<'a> {
 /// I need to think more about the best way to do this. Since we keep a handle to the library, we
 /// could also store pointers to the name and version of the factory, if that were useful.
 pub struct Handle {
+    // There is an implicit dependency of `handle` on `lib`.
+    #[allow(dead_code)]
     lib: Rc<Library>,
     handle: Rc<RawHandle>,
 }
@@ -322,29 +319,17 @@ impl Handle {
     ///
     /// This function borrows the handle to ensure that the handle lives at least as long as the
     /// interface is in use.
-    ///
-    /// # Safety
-    ///
-    /// The name must match the type of the interface. The user must know the types that describe
-    /// the interface with the given `name`.
-    ///
-    /// # Panics
-    ///
-    /// `name` must contain exactly 1 null byte at its end. The function will panic if this is not
-    /// the case.
-    pub unsafe fn interface<'a, T>(&'a self, name: &[u8]) -> Result<Interface<'a, T>> {
-        let name = CStr::from_bytes_with_nul(name).unwrap();
+    pub fn interface<'a, T: 'a + Interface<'a>>(&'a mut self) -> Result<T> {
+        let name = CStr::from_bytes_with_nul(T::NAME).unwrap();
         let mut iface: *mut c_void = ptr::null_mut();
-        err_from_code(((*self.handle.inner).get_interface.unwrap())(
-            self.handle.inner,
-            name.as_ptr(),
-            &mut iface,
-        ))?;
-        Ok(Interface {
-            handle: self.handle.clone(),
-            inner: iface as *mut T,
-            lifetime: PhantomData,
-        })
+        unsafe {
+            err_from_code(((*self.handle.inner).get_interface.unwrap())(
+                self.handle.inner,
+                name.as_ptr(),
+                &mut iface,
+            ))?;
+            Ok(T::from_raw(&mut *iface.cast()))
+        }
     }
 }
 
@@ -381,6 +366,7 @@ impl Drop for RawHandle {
     }
 }
 
+/*
 /// An interface to an object.
 ///
 /// /
@@ -389,6 +375,7 @@ pub struct Interface<'a, T> {
     inner: *mut T,
     lifetime: PhantomData<&'a ()>,
 }
+*/
 
 /// Convert an error code to a rust `io::Result`.
 fn err_from_code(val: i32) -> io::Result<i32> {
