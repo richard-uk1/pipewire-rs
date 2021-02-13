@@ -2,9 +2,14 @@
 
 use log::{Level, LevelFilter};
 use spa_sys::{spa_cpu, spa_cpu_methods, spa_log, spa_log_methods, spa_system, spa_system_methods};
-use std::{convert::TryInto, ffi::CString, io};
+use std::{
+    convert::TryInto,
+    ffi::CString,
+    io,
+    os::raw::{c_int, c_void},
+};
 
-use crate::{names::SUPPORT_LOG, Handle, Interface, Result};
+use crate::Interface;
 
 // Log
 
@@ -14,6 +19,9 @@ pub struct Log<'a> {
 
 unsafe impl<'a> Interface<'a> for Log<'a> {
     const NAME: &'static [u8] = b"Spa:Pointer:Interface:Log\0";
+    // TODO spa_interface_info reports version 1, but the actual interface report version 0. I
+    // don't know why this is.
+    const VERSION: u32 = 0;
     type Type = spa_log;
 
     fn from_raw(raw: &'a mut spa_log) -> Self {
@@ -145,10 +153,26 @@ pub struct System<'a> {
 
 unsafe impl<'a> Interface<'a> for System<'a> {
     const NAME: &'static [u8] = b"Spa:Pointer:Interface:System\0";
+    const VERSION: u32 = 0;
     type Type = spa_system;
 
     fn from_raw(raw: &'a mut spa_system) -> Self {
         System { raw }
+    }
+}
+
+impl<'a> System<'a> {
+    pub fn read(&mut self, fd: c_int, buf: *mut c_void, count: u64) -> i64 {
+        unsafe {
+            crate::spa_interface_call_method!(
+                self.raw as *mut spa_system,
+                spa_system_methods,
+                read,
+                fd,
+                buf,
+                count
+            )
+        }
     }
 }
 
@@ -160,6 +184,7 @@ pub struct Cpu<'a> {
 
 unsafe impl<'a> Interface<'a> for Cpu<'a> {
     const NAME: &'static [u8] = b"Spa:Pointer:Interface:CPU\0";
+    const VERSION: u32 = 0;
     type Type = spa_cpu;
 
     fn from_raw(raw: &'a mut spa_cpu) -> Self {

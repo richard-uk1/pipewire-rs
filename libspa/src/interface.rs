@@ -61,6 +61,9 @@ pub unsafe trait Interface<'a> {
     // TODO move to using `&CStr` once we can create these in a `const` context.
     const NAME: &'static [u8];
 
+    /// The version of the interface that we bind to
+    const VERSION: u32;
+
     /// The type of the underlying interface.
     ///
     /// # Safety

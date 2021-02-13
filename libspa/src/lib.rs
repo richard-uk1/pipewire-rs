@@ -4,7 +4,8 @@ use crate::interface::Interface;
 use anyhow::Error;
 use libloading::{Library, Symbol};
 use spa_sys::{
-    spa_handle, spa_handle_factory, spa_interface_info, SPA_HANDLE_FACTORY_ENUM_FUNC_NAME,
+    spa_handle, spa_handle_factory, spa_interface, spa_interface_info,
+    SPA_HANDLE_FACTORY_ENUM_FUNC_NAME,
 };
 use std::{
     alloc,
@@ -319,16 +320,30 @@ impl Handle {
     ///
     /// This function borrows the handle to ensure that the handle lives at least as long as the
     /// interface is in use.
-    pub fn interface<'a, T: 'a + Interface<'a>>(&'a mut self) -> Result<T> {
+    ///
+    /// Returns `None` if the interface is not present
+    pub fn interface<'a, T: 'a + Interface<'a>>(&'a mut self) -> Option<T> {
         let name = CStr::from_bytes_with_nul(T::NAME).unwrap();
         let mut iface: *mut c_void = ptr::null_mut();
         unsafe {
-            err_from_code(((*self.handle.inner).get_interface.unwrap())(
+            if let Err(e) = err_from_code(((*self.handle.inner).get_interface.unwrap())(
                 self.handle.inner,
                 name.as_ptr(),
                 &mut iface,
-            ))?;
-            Ok(T::from_raw(&mut *iface.cast()))
+            )) {
+                match e.raw_os_error() {
+                    Some(libc::ENOTSUP) => return None,
+                    _ => panic!(e),
+                }
+            }
+            // Safety: the first field of an interface is `spa_interface`, so we can reinterpret.
+            let generic_iface = iface.cast::<spa_interface>();
+            let version = (*generic_iface).version;
+            if version != T::VERSION {
+                return None;
+            }
+            // Safety: iface points to a valid object with lifetime 'a.
+            Some(T::from_raw(&mut *iface.cast()))
         }
     }
 }
