@@ -1,4 +1,6 @@
 //! Types and methods to wrap the "support" standard plugin.
+//!
+//! TODO make it so you can set the global logger to a `Log`.
 
 use log::{Level, LevelFilter};
 use spa_sys::{
@@ -6,7 +8,6 @@ use spa_sys::{
 };
 use std::{
     convert::TryInto,
-    ffi::CString,
     io,
     os::raw::{c_int, c_void},
 };
@@ -21,8 +22,6 @@ pub struct Log<'a> {
 
 unsafe impl<'a> Interface<'a> for Log<'a> {
     const NAME: &'static [u8] = b"Spa:Pointer:Interface:Log\0";
-    // TODO spa_interface_info reports version 1, but the actual interface report version 0. I
-    // don't know why this is.
     const VERSION: u32 = 0;
     type Type = spa_log;
 
@@ -58,6 +57,9 @@ impl<'a> Log<'a> {
 
     /// Log a message.
     ///
+    /// Don't use this function directly: instead use the macros. This function always prints the
+    /// message, regarless of the level filter.
+    ///
     /// # Safety
     ///
     /// The `file` string must be null-terminated.
@@ -65,36 +67,45 @@ impl<'a> Log<'a> {
     /// # Panics
     ///
     /// The function will panic if `msg` contains interior null bytes.
-    pub unsafe fn log(
-        &mut self,
-        level: Level,
-        file: &'static str,
-        line: u32,
-        msg: impl Into<String>,
-    ) {
+    // TODO currently allocates. I can't see how to bridge between `println` and `printf`
+    // semantics for formatting text withouta allocating.
+    #[doc(hidden)]
+    pub unsafe fn _log(&mut self, level: Level, file: &'static str, line: u32, msg: String) {
+        let mut msg = msg.into_bytes();
+        // CString would panic on interior null bytes, we just pass this string rhrough to display
+        // up to the null byte. Also add a newline to match `log` crate behavior`.
+        msg.push(b'\n');
+        msg.push(b'\0');
+        let level = match level {
+            Level::Error => 1,
+            Level::Warn => 2,
+            Level::Info => 3,
+            Level::Debug => 4,
+            Level::Trace => 5,
+        };
+        crate::spa_interface_call_method!(
+            self.raw as *mut spa_log,
+            spa_log_methods,
+            log,
+            level,
+            file as *const str as *mut _, // Safety: user responsibility to be null-terminated.
+            line.try_into().unwrap(),
+            b"-\0" as *const [u8; 2] as *mut _, // unsupported.
+            msg.as_ptr() as *const _
+        )
+    }
+}
+
+/// Log a message
+/// Use the other macros (`error`, `warn`, `info`, `debug`, `trace`) to avoid having to specify a level.
+#[macro_export]
+macro_rules! log {
+    ($logger:expr, $level:expr, $($fmt_args:tt)+) => {
         // TODO mark branch unlikely once rustc supports this (currently only possible using
         // nightly-only intrinsics)
-        if level <= self.level() {
-            let mut msg = msg.into().into_bytes();
-            msg.push(b'\n'); // match crate `log` behavior.
-            let msg = CString::new(msg).unwrap();
-            let level = match level {
-                Level::Error => 1,
-                Level::Warn => 2,
-                Level::Info => 3,
-                Level::Debug => 4,
-                Level::Trace => 5,
-            };
-            crate::spa_interface_call_method!(
-                self.raw as *mut spa_log,
-                spa_log_methods,
-                log,
-                level,
-                file as *const str as *mut _,
-                line.try_into().unwrap(),
-                b"-\0" as *const [u8; 2] as *mut _,
-                msg.as_ptr()
-            )
+        if $level <= $logger.level() {
+            let msg = format!($($fmt_args)+);
+            unsafe { $logger._log($level, concat!(file!(), "\0"), line!(), msg) }
         }
     }
 }
@@ -102,45 +113,40 @@ impl<'a> Log<'a> {
 /// Log an error
 #[macro_export]
 macro_rules! error {
-    ($logger:expr, $fmt:expr$(, $fmt_args:expr)*) => {
-        let msg = format!($fmt, $($fmt_args),*);
-        unsafe { $logger.log(log::Level::Error, concat!(file!(), "\0"), line!(), msg) }
+    ($logger:expr, $($fmt_args:tt)+) => {
+        $crate::log!($logger, log::Level::Error, $($fmt_args)+)
     }
 }
 
 /// Log a warning
 #[macro_export]
 macro_rules! warn {
-    ($logger:expr, $fmt:expr$(, $fmt_args:expr)*) => {
-        let msg = format!($fmt, $($fmt_args),*);
-        unsafe { $logger.log(log::Level::Warn, concat!(file!(), "\0"), line!(), msg) }
+    ($logger:expr, $($fmt_args:tt)+) => {
+        $crate::log!($logger, log::Level::Warn, $($fmt_args)+)
     }
 }
 
 /// Log some information
 #[macro_export]
 macro_rules! info {
-    ($logger:expr, $fmt:expr$(, $fmt_args:expr)*) => {
-        let msg = format!($fmt, $($fmt_args),*);
-        unsafe { $logger.log(log::Level::Info, concat!(file!(), "\0"), line!(), msg) }
+    ($logger:expr, $($fmt_args:tt)+) => {
+        $crate::log!($logger, log::Level::Info, $($fmt_args)+)
     }
 }
 
 /// Log some debug information
 #[macro_export]
 macro_rules! debug {
-    ($logger:expr, $fmt:expr$(, $fmt_args:expr)*) => {
-        let msg = format!($fmt, $($fmt_args),*);
-        unsafe { $logger.log(log::Level::Debug, concat!(file!(), "\0"), line!(), msg) }
+    ($logger:expr, $($fmt_args:tt)+) => {
+        $crate::log!($logger, log::Level::Debug, $($fmt_args)+)
     }
 }
 
 /// Log some detailed debug information.
 #[macro_export]
 macro_rules! trace {
-    ($logger:expr, $fmt:expr$(, $fmt_args:expr)*) => {
-        let msg = format!($fmt, $($fmt_args),*);
-        unsafe { $logger.log(log::Level::Trace, concat!(file!(), "\0"), line!(), msg) }
+    ($logger:expr, $($fmt_args:tt)+) => {
+        $crate::log!($logger, log::Level::Trace, $($fmt_args)+)
     }
 }
 
